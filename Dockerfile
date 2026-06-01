@@ -17,8 +17,8 @@ ENV HOME=/home/user \
 WORKDIR /app
 COPY --chown=user:user . /app
 
-# Install the package with the chroma vector extra
-RUN pip install --no-cache-dir --user ".[vector]"
+# Install the package with the chroma (vector RAG) + turso (durable storage) extras
+RUN pip install --no-cache-dir --user ".[vector,turso]"
 
 # Bake the embedding model + prebuild the vector index so cold starts are fast.
 # (Runs at build time; no API key needed — retrieval embeddings are local.)

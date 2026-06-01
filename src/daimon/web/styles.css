@@ -1145,6 +1145,205 @@ button { font-family: inherit; }
 }
 
 /* ========================================================================== *
+ * Your philosophy view
+ * ========================================================================== */
+.view--philosophy { max-width: 980px; }
+
+.philosophy__header { text-align: center; margin-bottom: var(--s-6); }
+.philosophy__glyph {
+  display: inline-flex;
+  color: var(--gold);
+  filter: drop-shadow(0 4px 14px rgba(201, 162, 75, .3));
+  margin-bottom: var(--s-2);
+}
+.philosophy__title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.9rem, 4.4vw, 2.8rem);
+  color: var(--cream);
+  letter-spacing: -0.01em;
+}
+.philosophy__sub {
+  margin-top: var(--s-2);
+  color: var(--cream-soft);
+  font-size: 0.98rem;
+  font-weight: 300;
+}
+.philosophy__count {
+  margin-top: var(--s-2);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 0.95rem;
+  color: var(--gold-bright);
+  min-height: 1.2em;
+}
+.philosophy__count:empty { min-height: 0; }
+
+#philosophy-content[hidden] { display: none; }
+
+/* ---- Empty state ---- */
+.philosophy__empty {
+  max-width: 460px;
+  margin: var(--s-7) auto 0;
+  padding: var(--s-7) var(--s-5);
+  text-align: center;
+  background: rgba(22, 28, 44, .55);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-4);
+}
+.philosophy__empty[hidden] { display: none; }
+.philosophy__empty-glyph { display: inline-flex; color: var(--gold); opacity: 0.9; }
+.philosophy__empty-text {
+  font-family: var(--font-prose);
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--cream);
+  max-width: 38ch;
+}
+
+/* ---- Weighted field of concept chips (the centrepiece) ----
+   --t (0..1) scales size + gold intensity: the more a concept recurs, the
+   larger and more golden it reads. Low-weight chips stay quiet cream. */
+.philosophy__field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2) var(--s-3);
+  max-width: 820px;
+  margin: 0 auto var(--s-7);
+  padding: var(--s-5) var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(120% 140% at 50% 0%, rgba(201, 162, 75, .06), transparent 60%),
+    rgba(14, 19, 32, .5);
+}
+.philosophy__field[hidden] { display: none; }
+
+.philosophy-chip {
+  --t: 0;
+  display: inline-flex;
+  align-items: center;
+  /* Size scales from small (t=0) to prominent (t=1). */
+  font-family: var(--font-display);
+  font-weight: calc(500 + 200 * var(--t));
+  font-size: calc(0.92rem + 1.15rem * var(--t));
+  line-height: 1.15;
+  padding: calc(6px + 4px * var(--t)) calc(12px + 8px * var(--t));
+  border-radius: 999px;
+  /* Colour interpolates cream-soft → gold-bright with weight. */
+  color: color-mix(in srgb, var(--gold-bright) calc(40% + 60% * var(--t)), var(--cream-soft));
+  border: 1px solid color-mix(in srgb, var(--gold) calc(22% + 58% * var(--t)), var(--border));
+  background: color-mix(in srgb, var(--gold) calc(5% + 16% * var(--t)), rgba(22, 28, 44, .5));
+  transition: transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out),
+              border-color 160ms var(--ease-out), background-color 160ms var(--ease-out);
+}
+.philosophy-chip:hover,
+.philosophy-chip.is-hot {
+  transform: translateY(-2px);
+  border-color: var(--gold-bright);
+  box-shadow: 0 6px 18px -10px rgba(201, 162, 75, .6);
+}
+
+/* Skeleton chips while loading */
+.philosophy__field--skel { min-height: 120px; }
+.philosophy__field--skel[hidden] { display: none; }
+.philosophy-chip--skel {
+  display: inline-block;
+  height: 30px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(201,162,75,.10) 25%, rgba(201,162,75,.20) 37%, rgba(201,162,75,.10) 63%);
+  background-size: 400% 100%;
+}
+
+/* ---- Constellation map (decorative; the list below is the a11y view) ---- */
+.philosophy__map {
+  max-width: 760px;
+  margin: 0 auto var(--s-6);
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background:
+    radial-gradient(80% 90% at 50% 45%, rgba(99, 102, 241, .06), transparent 70%),
+    rgba(11, 15, 26, .45);
+}
+.philosophy__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 760 / 440;
+}
+
+.philosophy-edge {
+  stroke: var(--gold);
+  stroke-width: 1;
+  opacity: 0.16;
+  transition: opacity 160ms var(--ease-out), stroke-width 160ms var(--ease-out);
+}
+.philosophy-edge.is-hot { opacity: 0.7; stroke-width: 1.6; }
+
+.philosophy-node__dot {
+  --t: 0;
+  fill: color-mix(in srgb, var(--gold-bright) calc(45% + 55% * var(--t)), var(--cream-soft));
+  stroke: rgba(11, 15, 26, .9);
+  stroke-width: 1.5;
+  transition: fill 160ms var(--ease-out);
+}
+.philosophy-node { --t: 0; }
+.philosophy-node__label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  fill: var(--cream-soft);
+  opacity: 0;                 /* labels reveal on hover to keep the map calm */
+  transition: opacity 160ms var(--ease-out), fill 160ms var(--ease-out);
+}
+/* The most prominent few concepts always carry a label. */
+.philosophy-node[style*="--t:1"] .philosophy-node__label,
+.philosophy-node[style*="--t:0.9"] .philosophy-node__label,
+.philosophy-node[style*="--t:0.8"] .philosophy-node__label { opacity: 0.85; }
+.philosophy-node.is-hot .philosophy-node__label { opacity: 1; fill: var(--gold-bright); }
+.philosophy-node.is-hot .philosophy-node__dot { fill: var(--gold-bright); }
+
+/* ---- Plain readable list (screen-reader + small-screen representation) ---- */
+.philosophy__list {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  max-width: 560px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--s-2) var(--s-4);
+}
+.philosophy-list__item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid rgba(40, 52, 73, .6);
+}
+.philosophy-list__name {
+  font-family: var(--font-prose);
+  font-size: 0.98rem;
+  color: var(--cream);
+  text-transform: capitalize;
+}
+.philosophy-list__count {
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--cream-soft);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ========================================================================== *
  * Responsive
  * ========================================================================== */
 @media (max-width: 1024px) {
@@ -1159,6 +1358,8 @@ button { font-family: inherit; }
   .salon__grid { grid-template-columns: 1fr; }
   /* Feature row → two columns on tablets. */
   .features { grid-template-columns: repeat(2, 1fr); }
+  /* Rein in the largest philosophy chips a touch on tablets. */
+  .philosophy-chip { font-size: calc(0.9rem + 0.9rem * var(--t)); }
 }
 
 @media (max-width: 640px) {
@@ -1176,6 +1377,7 @@ button { font-family: inherit; }
   .view--hero { padding: 0 var(--s-5); }
   .view--timeline, .timeline__header { padding-left: var(--s-5); padding-right: var(--s-5); }
   .view--salon, .salon__header { padding-left: var(--s-5); padding-right: var(--s-5); }
+  .view--philosophy, .philosophy__header { padding-left: var(--s-5); padding-right: var(--s-5); }
 
   /* Parchment + salon form/cards go (near) full-width with ~20px gutters */
   .letter, .composer { max-width: none; margin-left: 20px; margin-right: 20px; width: auto; }
@@ -1186,6 +1388,14 @@ button { font-family: inherit; }
   .hero__actions .btn { width: 100%; }
   .salon__actions { flex-direction: column-reverse; align-items: stretch; }
   .salon__actions .btn { width: 100%; }
+
+  /* Philosophy: the constellation collapses to the tag field on phones —
+     the weighted chips + readable list carry it. Empty CTA goes full-width. */
+  .philosophy__map { display: none; }
+  .philosophy__field { margin-left: 20px; margin-right: 20px; }
+  .philosophy__list { grid-template-columns: 1fr; }
+  .philosophy__empty { margin-left: 20px; margin-right: 20px; max-width: none; }
+  .philosophy__empty .btn { width: 100%; }
 
   /* Explainer stacks: single-column features, full-width name card. */
   .features { grid-template-columns: 1fr; gap: var(--s-3); }
@@ -1234,4 +1444,8 @@ button { font-family: inherit; }
   .ink-wash { display: none !important; }
   /* Make sure salon results are visible without an entrance animation. */
   .salon-card { opacity: 1 !important; }
+  /* Philosophy chips: no entrance/lift transform, always visible. The
+     constellation map is already static (no node animation). */
+  .philosophy-chip { opacity: 1 !important; }
+  .philosophy-chip:hover, .philosophy-chip.is-hot { transform: none !important; }
 }

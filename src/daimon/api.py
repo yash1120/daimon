@@ -18,13 +18,15 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .db import (
-    connect,
+    backend,
+    get_letter as db_get_letter,
     get_user_name,
     init_db,
     latest_philosopher_letter,
     recent_letters,
     save_letter,
     set_user_name,
+    user_replies,
 )
 from .limits import check_and_consume
 from .personas import available_personas, get_persona
@@ -36,6 +38,7 @@ app = FastAPI(title="Daimon", description="Daily letters from the philosophers."
 # Ensure the schema exists before the first request (important on fresh deploys,
 # where the very first call may be GET /api/me before any letter is generated).
 init_db()
+print(f"[daimon] storage backend: {backend()}", flush=True)
 
 # Permissive CORS — convenience for local development / demoing.
 app.add_middleware(
@@ -215,13 +218,7 @@ def _display_name(philosopher: str) -> str:
 
 
 def _fetch_letter(letter_id: int) -> dict | None:
-    with connect() as conn:
-        row = conn.execute(
-            "SELECT id, philosopher, role, body, created_at, in_reply_to, session_id"
-            " FROM letters WHERE id = ?",
-            (letter_id,),
-        ).fetchone()
-        return dict(row) if row else None
+    return db_get_letter(letter_id)
 
 
 # --------------------------------------------------------------------------- #
@@ -418,3 +415,43 @@ def set_me(req: MeRequest, sid: str = Depends(session_id)) -> dict:
     if name:
         set_user_name(sid, name)
     return {"name": name}
+
+
+@app.get("/api/health")
+def health() -> dict:
+    """Report the active storage backend and whether a DB read works.
+    Use this to confirm Turso is live on the deployed Space."""
+    ok = True
+    try:
+        user_replies("__health__", limit=1)  # cheap read; exercises a real connect
+    except Exception:
+        ok = False
+    return {"status": "ok" if ok else "degraded", "backend": backend()}
+
+
+@app.get("/api/philosophy")
+def philosophy(sid: str = Depends(session_id)) -> dict:
+    """The recurring concepts in THIS visitor's own replies — their philosophy
+    taking shape over time. Computed on demand from their stored replies."""
+    from collections import Counter
+
+    from .themes import extract_concepts
+
+    replies = user_replies(sid, limit=1000)
+    counts: Counter = Counter()
+    cooc: Counter = Counter()
+    for r in replies:
+        concepts = sorted(set(extract_concepts(r.get("body", "") or "")))
+        counts.update(concepts)
+        for i in range(len(concepts)):
+            for j in range(i + 1, len(concepts)):
+                cooc[(concepts[i], concepts[j])] += 1
+
+    return {
+        "total_replies": len(replies),
+        "concepts": [{"name": k, "weight": v} for k, v in counts.most_common(40)],
+        "edges": [
+            {"source": a, "target": b, "weight": w}
+            for (a, b), w in cooc.most_common(60)
+        ],
+    }

@@ -22,8 +22,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]
-vector = ["chromadb>=0.5"]   # opt-in vector RAG backend: DAIMON_RAG_BACKEND=chroma
-graph = ["neo4j>=5"]         # opt-in Neo4j export: daimon themes --neo4j
+vector = ["chromadb>=0.5"]            # opt-in vector RAG backend: DAIMON_RAG_BACKEND=chroma
+graph = ["neo4j>=5"]                  # opt-in Neo4j export: daimon themes --neo4j
+turso = ["libsql-experimental>=0.0.30"]  # durable cloud storage: TURSO_DATABASE_URL
 
 [project.scripts]
 daimon = "daimon.cli:cli"

@@ -18,5 +18,7 @@ networkx>=3.0
 pyvis>=0.3.2
 
 # Optional extras (install only if you want them):
-#   pip install chromadb   # vector RAG backend  (DAIMON_RAG_BACKEND=chroma)
-#   pip install neo4j      # Neo4j theme-graph export (daimon themes --neo4j)
+#   pip install chromadb              # vector RAG backend  (DAIMON_RAG_BACKEND=chroma)
+#   pip install neo4j                 # Neo4j theme-graph export (daimon themes --neo4j)
+#   pip install libsql-experimental   # durable Turso/libSQL storage (TURSO_DATABASE_URL)
+#                                      # Linux/deploy only (no Windows wheel); locally Daimon uses SQLite.

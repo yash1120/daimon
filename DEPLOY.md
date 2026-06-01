@@ -30,7 +30,13 @@ Each visitor gets an anonymous session cookie, so everyone has their own private
 
 4. **Wait for the build.** The Space builds the Docker image — this also downloads + bakes the embedding model and prebuilds the vector index, so the live app starts fast. When it's green, share the URL.
 
-> **Note on history:** the free Space disk is ephemeral and resets when the Space rebuilds. Visitors' correspondences persist while it's running but not across rebuilds. For durable history, attach **persistent storage** in Space settings and set the variable `DAIMON_DB=/data/daimon.db`.
+> **Durable history (recommended): Turso.** The free Space disk is ephemeral — it resets on every rebuild, so by default a visitor's letters and philosophy don't survive a rebuild. To make them durable for free, use a [Turso](https://turso.tech) database:
+> 1. Create a free Turso DB; copy its URL (`libsql://…`) and create an auth token.
+> 2. Add Space secrets `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` (leave `DAIMON_DB` unset).
+>
+> The image already installs the Turso driver (Linux wheel), so no extra setup. Confirm it's live by opening **`/api/health`** on the Space → it should return `{"backend":"turso","status":"ok"}` (and the logs print `storage backend: turso`).
+>
+> **Local note:** the Turso driver has no Windows wheel — don't run `pip install ".[turso]"` on Windows, and it's fine to leave `TURSO_*` out of your local `.env`. Locally Daimon uses SQLite by default (good for dev/CLI); the Turso extra is only installed on the Linux Space. If the env var is set locally without the driver, Daimon prints a warning and stays on SQLite rather than failing. (Alternatively, HF *paid* persistent storage + `DAIMON_DB=/data/daimon.db` works with zero code change.)
 
 The README's YAML frontmatter (`sdk: docker`, `app_port: 7860`) is what tells HF how to run it — keep it at the top of `README.md`.
 

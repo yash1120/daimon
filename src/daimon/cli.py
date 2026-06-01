@@ -272,5 +272,29 @@ def salon(question: str, philosophers: str | None):
         )
 
 
+@cli.command()
+def dbcheck():
+    """Report the active storage backend and run a read/write round-trip."""
+    from . import db
+
+    console.print(f"Storage backend: [bold]{db.backend()}[/bold]")
+    db.init_db()
+    sid = "__dbcheck__"
+    rid = db.save_letter("seneca", "user", "dbcheck ping", session_id=sid)
+    got = db.user_replies(sid, limit=5)
+    ok = any(g["id"] == rid for g in got)
+    console.print(
+        f"Wrote letter #{rid}; read back: "
+        + ("[green]OK[/green]" if ok else "[red]FAILED[/red]")
+    )
+    if db.backend() == "turso":
+        console.print("[dim]Turso connection works and is durable across restarts.[/dim]")
+    else:
+        console.print(
+            "[dim]Using local SQLite. Set TURSO_DATABASE_URL + TURSO_AUTH_TOKEN "
+            "for durable cloud storage.[/dim]"
+        )
+
+
 if __name__ == "__main__":
     cli()

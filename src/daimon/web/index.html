@@ -92,6 +92,7 @@
         <button class="nav-tab is-active" type="button" data-nav="hero" aria-current="page">Home</button>
         <button class="nav-tab" type="button" data-nav="timeline">Letters</button>
         <button class="nav-tab" type="button" data-nav="salon">Salon</button>
+        <button class="nav-tab" type="button" data-nav="philosophy">Your philosophy</button>
       </div>
 
       <label class="field-inline" for="philosopher-select">
@@ -406,6 +407,68 @@
         aria-label="Salon responses"
       ></div>
     </section>
+
+    <!-- ===== Your philosophy view ===== -->
+    <section id="view-philosophy" class="view view--philosophy" aria-labelledby="philosophy-title" hidden>
+      <header class="philosophy__header">
+        <span class="philosophy__glyph" aria-hidden="true">
+          <svg viewBox="0 0 48 48" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <!-- a small constellation: a mind taking shape -->
+            <circle cx="14" cy="14" r="2.4" fill="currentColor" stroke="none" />
+            <circle cx="33" cy="10" r="1.7" fill="currentColor" stroke="none" />
+            <circle cx="38" cy="27" r="2.1" fill="currentColor" stroke="none" />
+            <circle cx="22" cy="30" r="1.6" fill="currentColor" stroke="none" />
+            <circle cx="11" cy="34" r="1.8" fill="currentColor" stroke="none" />
+            <path d="M14 14l19-4M14 14l8 16M33 10l5 17M38 27l-16 3M22 30l-11 4" opacity="0.5" />
+          </svg>
+        </span>
+        <h2 id="philosophy-title" class="philosophy__title">Your philosophy</h2>
+        <p class="philosophy__sub">The ideas you keep returning to.</p>
+        <p id="philosophy-count" class="philosophy__count" aria-live="polite"></p>
+      </header>
+
+      <!-- Loading skeleton: a few chip placeholders -->
+      <div id="philosophy-loading" class="philosophy__field philosophy__field--skel" hidden aria-hidden="true">
+        <span class="skel philosophy-chip--skel" style="width:9ch"></span>
+        <span class="skel philosophy-chip--skel" style="width:6ch"></span>
+        <span class="skel philosophy-chip--skel" style="width:11ch"></span>
+        <span class="skel philosophy-chip--skel" style="width:7ch"></span>
+        <span class="skel philosophy-chip--skel" style="width:8ch"></span>
+        <span class="skel philosophy-chip--skel" style="width:5ch"></span>
+      </div>
+
+      <!-- Empty state -->
+      <div id="philosophy-empty" class="philosophy__empty" hidden>
+        <span class="philosophy__empty-glyph" aria-hidden="true">
+          <svg viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="24" cy="24" r="2" fill="currentColor" stroke="none" />
+            <circle cx="24" cy="24" r="11" opacity="0.5" stroke-dasharray="2 4" />
+            <circle cx="24" cy="24" r="19" opacity="0.28" stroke-dasharray="2 5" />
+          </svg>
+        </span>
+        <p class="philosophy__empty-text">
+          Your philosophy will take shape as you write. Reply to a few letters,
+          then return here.
+        </p>
+        <button id="philosophy-empty-cta" class="btn btn--gold" type="button">Read today&rsquo;s letter</button>
+      </div>
+
+      <!-- The living picture (hidden until data arrives) -->
+      <div id="philosophy-content" hidden>
+        <!-- Constellation map: nodes (size ∝ weight) joined by faint gold lines.
+             Decorative duplicate of the readable list below, hence aria-hidden. -->
+        <div id="philosophy-map" class="philosophy__map" aria-hidden="true">
+          <svg id="philosophy-svg" class="philosophy__svg" preserveAspectRatio="xMidYMid meet" focusable="false"></svg>
+        </div>
+
+        <!-- Weighted field of concept chips (the centrepiece) -->
+        <div id="philosophy-field" class="philosophy__field" aria-hidden="true"></div>
+
+        <!-- Plain readable list — the accessible representation of the field/map -->
+        <h3 class="sr-only" id="philosophy-list-heading">The ideas in your replies, most frequent first</h3>
+        <ul id="philosophy-list" class="philosophy__list" aria-labelledby="philosophy-list-heading"></ul>
+      </div>
+    </section>
   </main>
 
   <!-- ===== CDN libraries: Three.js r160 and GSAP 3 (no build step) =====
@@ -418,6 +481,7 @@
   <!-- App modules -->
   <script src="/static/three-bg.js" defer></script>
   <script src="/static/salon.js" defer></script>
+  <script src="/static/philosophy.js" defer></script>
   <script src="/static/app.js" defer></script>
 </body>
 </html>
