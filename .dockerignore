@@ -1,0 +1,22 @@
+.git
+.gitignore
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.db
+*.db-journal
+.env
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.idea/
+.vscode/
+/_*.py
+node_modules/
+# Rebuilt inside the image:
+src/daimon/rag/.chroma/
+src/daimon/themes/theme_graph.html
+src/daimon/themes/theme_graph.json

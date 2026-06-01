@@ -1,0 +1,22 @@
+# Core
+langgraph>=0.2.0
+langchain-core>=0.3.0
+langchain-groq>=0.2.0
+click>=8.1
+python-dotenv>=1.0
+rich>=13.0
+pydantic>=2.0
+
+# Web UI
+fastapi>=0.110
+uvicorn[standard]>=0.29
+
+# RAG (default backend) + email delivery + theme graph
+scikit-learn>=1.3
+requests>=2.31
+networkx>=3.0
+pyvis>=0.3.2
+
+# Optional extras (install only if you want them):
+#   pip install chromadb   # vector RAG backend  (DAIMON_RAG_BACKEND=chroma)
+#   pip install neo4j      # Neo4j theme-graph export (daimon themes --neo4j)

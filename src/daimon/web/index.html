@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="Daimon — daily letters from the philosophers. A contemplative correspondence with Seneca, Marcus Aurelius, Nietzsche, Camus, and Simone Weil." />
+  <meta name="color-scheme" content="dark" />
+  <title>Daimon — Daily letters from the philosophers</title>
+
+  <!-- Google Fonts: Playfair Display (display), Inter (UI), Libre Baskerville (prose) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body data-view="hero">
+  <!-- ===== Three.js ambient layered background (motes + dodecahedron + stars) ===== -->
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <!-- Full-screen "ink wash" used by GSAP to sweep between views -->
+  <div id="ink-wash" class="ink-wash" aria-hidden="true"></div>
+
+  <!-- ===== Inline SVG defs: paper noise + per-philosopher sigils (no emojis) ===== -->
+  <svg class="svg-defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <defs>
+      <filter id="paper-noise">
+        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" result="noise" />
+        <feColorMatrix in="noise" type="saturate" values="0" />
+        <feComponentTransfer>
+          <feFuncA type="linear" slope="0.06" />
+        </feComponentTransfer>
+        <feComposite operator="over" in2="SourceGraphic" />
+      </filter>
+
+      <!-- Sigils: simple thin-stroke marks, viewBox 0 0 24 24, currentColor.
+           Drawn with <use href="#sigil-KEY"> wherever a philosopher appears. -->
+      <g id="sigil-seneca">
+        <!-- Stoic hourglass / time -->
+        <path d="M7 4h10M7 20h10M8 4c0 4 3 6 4 8 1-2 4-4 4-8M8 20c0-4 3-6 4-8 1 2 4 4 4 8" />
+      </g>
+      <g id="sigil-aurelius">
+        <!-- Emperor's laurel arc + central mark -->
+        <path d="M5 15a7 7 0 0 0 14 0" />
+        <path d="M8 13c-1 1-1.6 2.2-1.8 3.4M16 13c1 1 1.6 2.2 1.8 3.4" />
+        <path d="M12 5v5M9.5 7.5h5" />
+      </g>
+      <g id="sigil-nietzsche">
+        <!-- Mountain peaks / eternal recurrence ring above -->
+        <circle cx="12" cy="6" r="2.4" />
+        <path d="M3 20l5-7 3 4 2.5-3.5L21 20z" />
+      </g>
+      <g id="sigil-camus">
+        <!-- Sun over the sea (the absurd + the orange-seller) -->
+        <circle cx="12" cy="9" r="3.6" />
+        <path d="M12 2.5v1.6M19 9h1.6M3.4 9H5M16.9 4.1l1.1-1.1M6 4.1L4.9 3M4 16h16M5 19.5h14" />
+      </g>
+      <g id="sigil-weil">
+        <!-- Attention: an eye / point of light -->
+        <path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z" />
+        <circle cx="12" cy="12" r="2" />
+      </g>
+      <g id="sigil-default">
+        <circle cx="12" cy="12" r="7" />
+        <circle cx="12" cy="12" r="1.4" />
+      </g>
+    </defs>
+  </svg>
+
+  <!-- ===== Top navigation ===== -->
+  <header class="nav" role="banner">
+    <a class="brand" href="#" data-nav="hero" aria-label="Daimon — home">
+      <span class="brand__glyph" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6">
+          <circle cx="16" cy="16" r="11" />
+          <circle cx="16" cy="16" r="2.4" fill="currentColor" stroke="none" />
+          <circle cx="26.5" cy="9.5" r="1.9" fill="currentColor" stroke="none" />
+          <path d="M16 5a11 11 0 0 1 9.7 5.8" opacity="0.55" />
+        </svg>
+      </span>
+      <span class="brand__word">Daimon</span>
+      <span id="brand-for" class="brand__for" hidden></span>
+    </a>
+
+    <nav class="nav__actions" aria-label="Primary">
+      <!-- View tabs -->
+      <div class="nav__tabs" role="group" aria-label="Views">
+        <button class="nav-tab is-active" type="button" data-nav="hero" aria-current="page">Home</button>
+        <button class="nav-tab" type="button" data-nav="timeline">Letters</button>
+        <button class="nav-tab" type="button" data-nav="salon">Salon</button>
+      </div>
+
+      <label class="field-inline" for="philosopher-select">
+        <span class="field-inline__label">Philosopher</span>
+        <span class="select-wrap">
+          <select id="philosopher-select" aria-label="Choose a philosopher"></select>
+          <span class="select-wrap__chevron" aria-hidden="true">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M4 6l4 4 4-4" />
+            </svg>
+          </span>
+        </span>
+      </label>
+      <button id="nav-new-letter" class="btn btn--gold btn--sm" type="button">
+        <span class="btn__icon" aria-hidden="true">
+          <svg viewBox="0 0 18 18" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M9 3.5v11M3.5 9h11" stroke-linecap="round" />
+          </svg>
+        </span>
+        New letter
+      </button>
+    </nav>
+  </header>
+
+  <main id="main" class="main" role="main">
+    <!-- ===== Hero view ===== -->
+    <section id="view-hero" class="view view--hero" aria-labelledby="hero-title">
+      <div class="hero">
+        <span class="hero__glyph" data-anim aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.4">
+            <circle cx="32" cy="32" r="22" />
+            <circle cx="32" cy="32" r="4" fill="currentColor" stroke="none" />
+            <circle cx="53" cy="18" r="3.2" fill="currentColor" stroke="none" />
+            <path d="M32 10a22 22 0 0 1 19.5 11.7" opacity="0.5" />
+          </svg>
+        </span>
+        <h1 id="hero-title" class="hero__title" data-anim>Daimon</h1>
+        <p class="hero__tagline" data-anim>A daily correspondence with history&rsquo;s great philosophers.</p>
+
+        <!-- Greek-key / meander divider -->
+        <span class="meander" data-anim aria-hidden="true">
+          <svg viewBox="0 0 240 16" width="240" height="16" fill="none" stroke="currentColor" stroke-width="1.4" preserveAspectRatio="xMidYMid meet">
+            <path d="M2 14V6h6v6h-3M16 14V2h12v12h-3V5h-6v9M36 14V6h6v6h-3M50 14V2h12v12h-3V5h-6v9M70 14V6h6v6h-3M84 14V2h12v12h-3V5h-6v9M104 14V6h6v6h-3M118 14V2h12v12h-3V5h-6v9M138 14V6h6v6h-3M152 14V2h12v12h-3V5h-6v9M172 14V6h6v6h-3M186 14V2h12v12h-3V5h-6v9M206 14V6h6v6h-3M220 14V2h12v12h-3V5h-6v9" stroke-linecap="square" />
+          </svg>
+        </span>
+
+        <!-- Explainer: what Daimon is -->
+        <p class="hero__lede" data-anim>
+          Daimon is an ongoing exchange of letters with Seneca, Marcus Aurelius,
+          Nietzsche, Camus, and Simone Weil. Each writes you a short letter in
+          their own voice; you reply when you like; over time it becomes a
+          correspondence of your own.
+        </p>
+
+        <div class="hero__actions" data-anim>
+          <button id="hero-read" class="btn btn--gold btn--lg" type="button">Read today&rsquo;s letter</button>
+          <button id="hero-browse" class="btn btn--ghost btn--lg" type="button">Browse correspondence</button>
+          <button id="hero-salon" class="btn btn--ghost btn--lg" type="button">Convene the salon</button>
+        </div>
+
+        <!-- Name personalisation (optional) -->
+        <form id="name-form" class="namecard" data-anim novalidate>
+          <label class="namecard__label" for="name-input">What may the philosophers call you?</label>
+          <div class="namecard__row">
+            <input
+              id="name-input"
+              class="namecard__input"
+              type="text"
+              name="name"
+              maxlength="60"
+              autocomplete="given-name"
+              spellcheck="false"
+              enterkeyhint="done"
+              aria-describedby="name-status"
+            />
+            <button id="name-save" class="btn btn--gold btn--sm" type="submit">
+              <span class="btn__label">Save</span>
+              <span class="btn__spinner" aria-hidden="true"></span>
+              <span class="btn__check" aria-hidden="true">
+                <svg viewBox="0 0 18 18" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 9.5l3.2 3.2L14 5.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </span>
+            </button>
+          </div>
+          <p id="name-status" class="namecard__status" role="status" aria-live="polite"></p>
+        </form>
+
+        <!-- How it works -->
+        <ul class="features" data-anim aria-label="How Daimon works">
+          <li class="feature">
+            <span class="feature__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="5" width="18" height="14" rx="2" />
+                <path d="M3.5 6.5l8.5 6 8.5-6" />
+              </svg>
+            </span>
+            <span class="feature__head">A letter arrives</span>
+            <span class="feature__text">A philosopher writes to you, in their own voice.</span>
+          </li>
+          <li class="feature">
+            <span class="feature__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 17H6a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3h-4l-4 4z" />
+                <path d="M8 10h8M8 13h5" />
+              </svg>
+            </span>
+            <span class="feature__head">You reply</span>
+            <span class="feature__text">Your replies shape what comes next.</span>
+          </li>
+          <li class="feature">
+            <span class="feature__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="7.5" cy="9" r="2.5" />
+                <circle cx="16.5" cy="9" r="2.5" />
+                <path d="M3 19v-1a4 4 0 0 1 4-4 4 4 0 0 1 4 4v1M13 19v-1a4 4 0 0 1 4-4 4 4 0 0 1 4 4v1" />
+              </svg>
+            </span>
+            <span class="feature__head">Hold a salon</span>
+            <span class="feature__text">Put one question to several philosophers at once.</span>
+          </li>
+          <li class="feature">
+            <span class="feature__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5z" />
+                <path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H19v3H6.5A2.5 2.5 0 0 1 4 20.5zM8 7h7M8 10h7" />
+              </svg>
+            </span>
+            <span class="feature__head">Grounded in their works</span>
+            <span class="feature__text">Answers draw on the philosophers&rsquo; actual writings.</span>
+          </li>
+        </ul>
+
+        <p class="hero__note" data-anim>
+          Your correspondence is your own &mdash; private to you, and free.
+        </p>
+      </div>
+    </section>
+
+    <!-- ===== Reading view ===== -->
+    <section id="view-reading" class="view view--reading" aria-labelledby="reading-heading" hidden>
+      <h2 id="reading-heading" class="sr-only">Letter</h2>
+
+      <!-- Loading skeleton -->
+      <div id="reading-loading" class="letter letter--skeleton" hidden aria-hidden="true">
+        <div class="letter__paper">
+          <div class="skel skel--title"></div>
+          <div class="skel skel--divider"></div>
+          <div class="skel skel--meta"></div>
+          <div class="skel skel--line"></div>
+          <div class="skel skel--line"></div>
+          <div class="skel skel--line short"></div>
+          <div class="skel skel--line"></div>
+          <div class="skel skel--line short"></div>
+        </div>
+      </div>
+
+      <!-- The letter -->
+      <article id="letter" class="letter" aria-live="polite" hidden>
+        <div class="letter__paper">
+          <!-- Decorative wax seal -->
+          <span class="wax-seal" aria-hidden="true">
+            <svg viewBox="0 0 64 64" width="56" height="56">
+              <circle cx="32" cy="32" r="26" fill="#7C1F1A" />
+              <circle cx="32" cy="32" r="26" fill="url(#none)" stroke="#5A1411" stroke-width="2" />
+              <circle cx="32" cy="32" r="20" fill="none" stroke="#A8493F" stroke-width="1.2" stroke-dasharray="2 3" opacity="0.8" />
+              <g fill="none" stroke="#E7C778" stroke-width="1.6" opacity="0.92">
+                <circle cx="32" cy="32" r="9" />
+                <circle cx="32" cy="32" r="1.8" fill="#E7C778" stroke="none" />
+                <path d="M32 19a13 13 0 0 1 11.5 7" opacity="0.7" />
+              </g>
+            </svg>
+          </span>
+
+          <div class="letter__head">
+            <span id="letter-sample-chip" class="chip" hidden>
+              <span class="chip__dot" aria-hidden="true"></span>
+              Sample &middot; add a GROQ key for live letters
+            </span>
+            <span class="letter__sigil" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <use id="letter-sigil-use" href="#sigil-default" />
+              </svg>
+            </span>
+            <h3 id="letter-author" class="letter__author">Lucius Annaeus Seneca</h3>
+
+            <!-- meander divider replaces the plain rule -->
+            <span class="meander meander--paper" aria-hidden="true">
+              <svg viewBox="0 0 240 16" width="180" height="14" fill="none" stroke="currentColor" stroke-width="1.4" preserveAspectRatio="xMidYMid meet">
+                <path d="M2 14V6h6v6h-3M16 14V2h12v12h-3V5h-6v9M36 14V6h6v6h-3M50 14V2h12v12h-3V5h-6v9M70 14V6h6v6h-3M84 14V2h12v12h-3V5h-6v9M104 14V6h6v6h-3M118 14V2h12v12h-3V5h-6v9M138 14V6h6v6h-3M152 14V2h12v12h-3V5h-6v9M172 14V6h6v6h-3M186 14V2h12v12h-3V5h-6v9M206 14V6h6v6h-3M220 14V2h12v12h-3V5h-6v9" stroke-linecap="square" />
+              </svg>
+            </span>
+            <p id="letter-date" class="letter__date">&nbsp;</p>
+          </div>
+          <div id="letter-body" class="letter__body"></div>
+          <div class="letter__flourish" aria-hidden="true">
+            <svg viewBox="0 0 120 24" width="120" height="24" fill="none" stroke="currentColor" stroke-width="1.4">
+              <path d="M4 12c20 0 28-8 40-8s14 16 28 16 24-8 44-8" stroke-linecap="round" opacity="0.8" />
+              <circle cx="60" cy="12" r="2.2" fill="currentColor" stroke="none" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- Reply composer -->
+        <form id="reply-form" class="composer" novalidate>
+          <div class="composer__head">
+            <span class="composer__icon" aria-hidden="true">
+              <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M3 17l2.5-.6L16 5.9a1.6 1.6 0 0 0-2.3-2.3L3.2 14.2 3 17z" stroke-linejoin="round" />
+                <path d="M12.5 5.5l2 2" />
+              </svg>
+            </span>
+            <label class="composer__label" for="reply-text">Write your reply</label>
+          </div>
+          <textarea
+            id="reply-text"
+            class="composer__input"
+            name="reply"
+            rows="4"
+            placeholder="Set down your thoughts&hellip;"
+            aria-describedby="reply-message"
+          ></textarea>
+          <div class="composer__foot">
+            <p id="reply-message" class="composer__message" role="status" aria-live="polite"></p>
+            <button id="reply-submit" class="btn btn--gold btn--sm" type="submit">
+              <span class="btn__label">Send reply</span>
+              <span class="btn__spinner" aria-hidden="true"></span>
+              <span class="btn__check" aria-hidden="true">
+                <svg viewBox="0 0 18 18" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 9.5l3.2 3.2L14 5.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </span>
+            </button>
+          </div>
+        </form>
+      </article>
+    </section>
+
+    <!-- ===== Timeline / correspondence view ===== -->
+    <section id="view-timeline" class="view view--timeline" aria-labelledby="timeline-title" hidden>
+      <header class="timeline__header">
+        <h2 id="timeline-title" class="timeline__title">Correspondence</h2>
+        <p id="timeline-sub" class="timeline__sub">Your letters with the philosopher, oldest first.</p>
+      </header>
+      <ol id="timeline-list" class="timeline" aria-label="Correspondence timeline"></ol>
+      <p id="timeline-empty" class="timeline__empty" hidden>
+        No letters yet. Begin the correspondence &mdash;
+        <button class="link-btn" id="timeline-empty-cta" type="button">read today&rsquo;s letter</button>.
+      </p>
+    </section>
+
+    <!-- ===== Salon view (new) ===== -->
+    <section id="view-salon" class="view view--salon" aria-labelledby="salon-title" hidden>
+      <header class="salon__header">
+        <span class="salon__glyph" aria-hidden="true">
+          <svg viewBox="0 0 48 48" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.4">
+            <!-- a small dodecahedron-ish convening mark -->
+            <path d="M24 5l13 7v15l-13 9-13-9V12z" />
+            <path d="M24 5v9l11 4M24 14L13 18M24 14v17" opacity="0.6" />
+          </svg>
+        </span>
+        <h2 id="salon-title" class="salon__title">The Salon</h2>
+        <p class="salon__sub">Pose one question; hear several minds answer at once.</p>
+      </header>
+
+      <form id="salon-form" class="salon__form" novalidate>
+        <label class="salon__label" for="salon-question">Your question</label>
+        <div class="salon__field">
+          <textarea
+            id="salon-question"
+            class="salon__input"
+            name="question"
+            rows="2"
+            placeholder="Ask the salon a question&hellip;"
+            aria-describedby="salon-hint salon-message"
+          ></textarea>
+        </div>
+        <p id="salon-hint" class="salon__hint">Press Ctrl/&#8984; + Enter to pose your question.</p>
+
+        <fieldset class="salon__who">
+          <legend class="salon__who-legend">Who should answer?</legend>
+          <div id="salon-chips" class="salon__chips" role="group" aria-label="Philosophers to include"></div>
+        </fieldset>
+
+        <div class="salon__actions">
+          <p id="salon-message" class="salon__message" role="alert" aria-live="assertive"></p>
+          <button id="salon-submit" class="btn btn--gold" type="submit">
+            <span class="btn__label">Pose to the salon</span>
+            <span class="btn__spinner" aria-hidden="true"></span>
+          </button>
+        </div>
+      </form>
+
+      <span id="salon-sample-chip" class="chip chip--dark" hidden>
+        <span class="chip__dot" aria-hidden="true"></span>
+        Sample &middot; add a Groq key for live answers
+      </span>
+
+      <!-- Loading skeleton of salon cards -->
+      <div id="salon-loading" class="salon__grid" hidden aria-hidden="true">
+        <div class="salon-card salon-card--skel"><div class="skel skel--meta"></div><div class="skel skel--line"></div><div class="skel skel--line"></div><div class="skel skel--line short"></div></div>
+        <div class="salon-card salon-card--skel"><div class="skel skel--meta"></div><div class="skel skel--line"></div><div class="skel skel--line"></div><div class="skel skel--line short"></div></div>
+        <div class="salon-card salon-card--skel"><div class="skel skel--meta"></div><div class="skel skel--line"></div><div class="skel skel--line"></div><div class="skel skel--line short"></div></div>
+      </div>
+
+      <!-- Results: the philosophers' answers -->
+      <h3 id="salon-results-title" class="salon__results-title" hidden></h3>
+      <div
+        id="salon-results"
+        class="salon__grid"
+        aria-live="polite"
+        aria-label="Salon responses"
+      ></div>
+    </section>
+  </main>
+
+  <!-- ===== CDN libraries: Three.js r160 and GSAP 3 (no build step) =====
+       jsDelivr serves three.min.js with a correct application/javascript MIME
+       type + CORS headers; cdnjs's copy is blocked by some browsers' Opaque
+       Response Blocking (ERR_BLOCKED_BY_ORB) when loaded as a classic script. -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+  <!-- App modules -->
+  <script src="/static/three-bg.js" defer></script>
+  <script src="/static/salon.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

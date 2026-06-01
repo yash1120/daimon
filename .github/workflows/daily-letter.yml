@@ -1,0 +1,61 @@
+name: Daily Letter
+
+# ---------------------------------------------------------------------------
+# Sends one Daimon letter per day via email (Resend).
+#
+# KNOWN LIMITATION — ephemeral database:
+#   This workflow runs on a fresh Ubuntu runner each time, so the SQLite DB
+#   (daimon.db) starts EMPTY on every run. Consequence: the philosopher has no
+#   memory of prior letters/replies in CI — every run behaves like an "opening"
+#   letter. This workflow is for DELIVERY, not durable correspondence history.
+#
+#   To persist history you would need one of:
+#     * commit daimon.db back to the repo after each run (noisy, and risks
+#       leaking private correspondence into git history), or
+#     * upload/download daimon.db as a workflow artifact between runs
+#       (artifacts expire and aren't a real database), or
+#     * point DAIMON_DB at an external/managed database (e.g. Turso/libSQL,
+#       Postgres) via a connection secret.
+#
+#   We intentionally do NOT implement persistence here — keep it simple.
+# ---------------------------------------------------------------------------
+
+on:
+  schedule:
+    # 07:00 UTC daily. (GitHub cron is always UTC; adjust if you want a
+    # specific local-morning delivery.)
+    - cron: "0 7 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-letter
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package
+        run: pip install -e .
+
+      - name: Send daily letter
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DAIMON_TO_EMAIL: ${{ secrets.DAIMON_TO_EMAIL }}
+          DAIMON_FROM_EMAIL: ${{ secrets.DAIMON_FROM_EMAIL }}
+          DAIMON_PHILOSOPHER: ${{ secrets.DAIMON_PHILOSOPHER }}
+        run: python -m daimon.delivery.daily

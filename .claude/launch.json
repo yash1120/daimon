@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "daimon-web",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "daimon.api:app", "--port", "8077", "--host", "127.0.0.1"],
+      "port": 8077
+    }
+  ]
+}
