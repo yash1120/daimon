@@ -273,6 +273,20 @@ def list_philosophers() -> list[dict]:
     return out
 
 
+@app.get("/api/about")
+def about() -> list[dict]:
+    """Rich profile of each philosopher for the About section."""
+    from .about import ABOUT
+
+    out: list[dict] = []
+    for key in available_personas():
+        info = dict(ABOUT.get(key, {}))
+        info["key"] = key
+        info["display_name"] = _display_name(key)
+        out.append(info)
+    return out
+
+
 @app.get("/api/letters")
 def list_letters(
     philosopher: str = "seneca", limit: int = 50, sid: str = Depends(session_id)

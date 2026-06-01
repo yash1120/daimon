@@ -14,7 +14,7 @@
 
   // Logical ordering of views: forward = enter from the right/below,
   // backward = enter from the left/above (continuity of direction).
-  const VIEW_ORDER = { hero: 0, reading: 1, timeline: 2, salon: 3, philosophy: 4 };
+  const VIEW_ORDER = { hero: 0, reading: 1, timeline: 2, salon: 3, philosophy: 4, about: 5 };
 
   // Map a philosopher key to its inline SVG sigil id (defined in index.html).
   const SIGIL_KEYS = ["seneca", "aurelius", "nietzsche", "camus", "weil"];
@@ -35,6 +35,7 @@
     viewTimeline: document.getElementById("view-timeline"),
     viewSalon: document.getElementById("view-salon"),
     viewPhilosophy: document.getElementById("view-philosophy"),
+    viewAbout: document.getElementById("view-about"),
 
     heroRead: document.getElementById("hero-read"),
     heroBrowse: document.getElementById("hero-browse"),
@@ -146,6 +147,7 @@
     timeline: els.viewTimeline,
     salon: els.viewSalon,
     philosophy: els.viewPhilosophy,
+    about: els.viewAbout,
   };
 
   let currentView = "hero";
@@ -613,6 +615,7 @@
     if (name === "timeline") buildTimeline();
     if (name === "salon" && window.DaimonSalon) window.DaimonSalon.onEnter();
     if (name === "philosophy" && window.DaimonPhilosophy) window.DaimonPhilosophy.onEnter();
+    if (name === "about" && window.DaimonAbout) window.DaimonAbout.onEnter();
   }
 
   // ---- Wire events ----
