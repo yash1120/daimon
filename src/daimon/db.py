@@ -25,13 +25,23 @@ _TABLES = [
         body TEXT NOT NULL,
         created_at TEXT NOT NULL,
         in_reply_to INTEGER REFERENCES letters(id),
-        session_id TEXT
+        session_id TEXT,
+        bookmarked INTEGER DEFAULT 0
     )""",
     """CREATE TABLE IF NOT EXISTS prefs (
         session_id TEXT PRIMARY KEY,
-        user_name TEXT
+        user_name TEXT,
+        theme TEXT,
+        tts INTEGER DEFAULT 0,
+        default_philosopher TEXT
     )""",
 ]
+
+# columns added after the original schema shipped -> migrated in init_db
+_MIGRATIONS = {
+    "letters": {"session_id": "TEXT", "bookmarked": "INTEGER DEFAULT 0"},
+    "prefs": {"theme": "TEXT", "tts": "INTEGER DEFAULT 0", "default_philosopher": "TEXT"},
+}
 _INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_letters_philosopher ON letters(philosopher)",
     "CREATE INDEX IF NOT EXISTS idx_letters_created_at ON letters(created_at)",
@@ -123,15 +133,22 @@ def _one(cur, cols: list[str]) -> dict | None:
     return dict(zip(cols, row)) if row else None
 
 
+def _ensure_columns(conn, table: str, coldefs: dict[str, str]) -> None:
+    existing = [r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+    for col, decl in coldefs.items():
+        if col not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+
+
 def init_db() -> None:
     with connect() as conn:
         for stmt in _TABLES:
             conn.execute(stmt)
-        # Migrate databases that predate session_id BEFORE creating its index.
+        # Migrate older databases (add any columns introduced after first ship)
+        # BEFORE creating indexes that may reference them.
         try:
-            cols = [r[1] for r in conn.execute("PRAGMA table_info(letters)").fetchall()]
-            if "session_id" not in cols:
-                conn.execute("ALTER TABLE letters ADD COLUMN session_id TEXT")
+            for table, coldefs in _MIGRATIONS.items():
+                _ensure_columns(conn, table, coldefs)
         except Exception:
             pass
         for stmt in _INDEXES:
@@ -208,11 +225,12 @@ def latest_philosopher_letter(
 
 
 def get_letter(letter_id: int) -> dict | None:
-    cols = ["id", "philosopher", "role", "body", "created_at", "in_reply_to", "session_id"]
+    cols = ["id", "philosopher", "role", "body", "created_at", "in_reply_to",
+            "session_id", "bookmarked"]
     with connect() as conn:
         cur = conn.execute(
-            "SELECT id, philosopher, role, body, created_at, in_reply_to, session_id"
-            " FROM letters WHERE id = ?",
+            "SELECT id, philosopher, role, body, created_at, in_reply_to,"
+            " session_id, bookmarked FROM letters WHERE id = ?",
             (letter_id,),
         )
         return _one(cur, cols)
@@ -254,3 +272,120 @@ def get_user_name(session_id: str | None) -> str | None:
         )
         row = cur.fetchone()
         return row[0] if row and row[0] else None
+
+
+def set_bookmark(letter_id: int, session_id: str | None, on: bool) -> None:
+    with connect() as conn:
+        if session_id is not None:
+            conn.execute(
+                "UPDATE letters SET bookmarked = ? WHERE id = ? AND session_id = ?",
+                (1 if on else 0, letter_id, session_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE letters SET bookmarked = ? WHERE id = ?",
+                (1 if on else 0, letter_id),
+            )
+
+
+def list_bookmarks(session_id: str | None, limit: int = 200) -> list[dict]:
+    cols = ["id", "philosopher", "role", "body", "created_at"]
+    sql = ("SELECT id, philosopher, role, body, created_at FROM letters"
+           " WHERE bookmarked = 1")
+    params: list = []
+    if session_id is not None:
+        sql += " AND session_id = ?"
+        params.append(session_id)
+    sql += " ORDER BY id DESC LIMIT ?"
+    params.append(limit)
+    with connect() as conn:
+        return _dicts(conn.execute(sql, tuple(params)), cols)
+
+
+def search_letters(session_id: str | None, q: str, limit: int = 50) -> list[dict]:
+    cols = ["id", "philosopher", "role", "body", "created_at"]
+    sql = ("SELECT id, philosopher, role, body, created_at FROM letters"
+           " WHERE body LIKE ?")
+    params: list = [f"%{q}%"]
+    if session_id is not None:
+        sql += " AND session_id = ?"
+        params.append(session_id)
+    sql += " ORDER BY id DESC LIMIT ?"
+    params.append(limit)
+    with connect() as conn:
+        return _dicts(conn.execute(sql, tuple(params)), cols)
+
+
+def stats(session_id: str | None) -> dict:
+    where = "WHERE session_id = ?" if session_id is not None else "WHERE 1=1"
+    p: tuple = (session_id,) if session_id is not None else ()
+    with connect() as conn:
+        letters = conn.execute(
+            f"SELECT COUNT(*) FROM letters {where} AND role='philosopher'", p
+        ).fetchone()[0]
+        replies = conn.execute(
+            f"SELECT COUNT(*) FROM letters {where} AND role='user'", p
+        ).fetchone()[0]
+        rows = conn.execute(
+            f"SELECT philosopher, COUNT(*) FROM letters {where} AND role='philosopher'"
+            " GROUP BY philosopher", p
+        ).fetchall()
+        by_phil = {r[0]: r[1] for r in rows}
+        dates = [r[0][:10] for r in conn.execute(
+            f"SELECT created_at FROM letters {where}", p
+        ).fetchall() if r[0]]
+
+    days = sorted(set(dates))
+    streak = 0
+    if days:
+        from datetime import date, timedelta
+
+        dset = set(days)
+        cur = date.fromisoformat(days[-1])
+        while cur.isoformat() in dset:
+            streak += 1
+            cur = cur - timedelta(days=1)
+    return {
+        "letters": letters,
+        "replies": replies,
+        "active_days": len(days),
+        "streak": streak,
+        "by_philosopher": by_phil,
+    }
+
+
+def get_prefs(session_id: str | None) -> dict:
+    out = {"name": "", "theme": "", "tts": False, "default_philosopher": ""}
+    if not session_id:
+        return out
+    with connect() as conn:
+        cur = conn.execute(
+            "SELECT user_name, theme, tts, default_philosopher FROM prefs"
+            " WHERE session_id = ?",
+            (session_id,),
+        )
+        row = cur.fetchone()
+    if row:
+        out["name"] = row[0] or ""
+        out["theme"] = row[1] or ""
+        out["tts"] = bool(row[2])
+        out["default_philosopher"] = row[3] or ""
+    return out
+
+
+def set_prefs(session_id: str, **fields) -> None:
+    if "name" in fields:
+        fields["user_name"] = fields.pop("name")
+    if "tts" in fields:
+        fields["tts"] = 1 if fields["tts"] else 0
+    allowed = {"user_name", "theme", "tts", "default_philosopher"}
+    fields = {k: v for k, v in fields.items() if k in allowed}
+    if not fields:
+        return
+    with connect() as conn:
+        conn.execute("INSERT OR IGNORE INTO prefs (session_id) VALUES (?)", (session_id,))
+        sets = ", ".join(f"{k} = ?" for k in fields)
+        conn.execute(
+            f"UPDATE prefs SET {sets} WHERE session_id = ?",
+            (*fields.values(), session_id),
+        )

@@ -1682,6 +1682,14 @@ button { font-family: inherit; }
   .view--salon, .salon__header { padding-left: var(--s-5); padding-right: var(--s-5); }
   .view--philosophy, .philosophy__header { padding-left: var(--s-5); padding-right: var(--s-5); }
   .view--about, .about__header { padding-left: var(--s-5); padding-right: var(--s-5); }
+  .view--saved, .saved__header { padding-left: var(--s-5); padding-right: var(--s-5); }
+  .view--stats, .stats__header { padding-left: var(--s-5); padding-right: var(--s-5); }
+
+  /* Saved cards + stats empty go (near) full-width on phones. */
+  .saved__empty, .stats__empty { margin-left: 20px; margin-right: 20px; max-width: none; }
+  .saved__empty .btn, .stats__empty .btn { width: 100%; }
+  /* Four stat tiles → two columns on small screens. */
+  .stats__numbers { grid-template-columns: repeat(2, 1fr); gap: var(--s-3); }
 
   /* Parchment + salon form/cards go (near) full-width with ~20px gutters */
   .letter, .composer { max-width: none; margin-left: 20px; margin-right: 20px; width: auto; }
@@ -1734,6 +1742,1156 @@ button { font-family: inherit; }
   .nav__tabs { padding: 2px; }
 }
 
+/* The nav carries more tabs now (Home / Letters / Salon / Saved / Your
+   philosophy / Journey / About). On narrower viewports let the tab group
+   scroll horizontally so every view stays reachable rather than wrapping or
+   clipping. The scrollbar is hidden; the active tab stays visible. */
+@media (max-width: 860px) {
+  .nav__tabs {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+  }
+  .nav__tabs::-webkit-scrollbar { display: none; }
+  .nav-tab { white-space: nowrap; flex: 0 0 auto; }
+}
+
+/* Search overlay on phones: a near full-width sheet just under the nav. */
+@media (max-width: 480px) {
+  .search-overlay { padding: calc(var(--nav-h) + var(--s-3)) var(--s-3) var(--s-3); }
+  .search-panel { max-height: calc(100dvh - var(--nav-h) - var(--s-5)); }
+  .search-panel__bar { padding: var(--s-3) var(--s-4); }
+  .search-panel__input { font-size: 1rem; }
+}
+
+/* ========================================================================== *
+ * Icon buttons (nav gear, theme toggle, modal close) — square, ghost-style
+ * ========================================================================== */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--cream-soft);
+  cursor: pointer;
+  transition: color 160ms var(--ease-out), border-color 160ms var(--ease-out),
+              background-color 160ms var(--ease-out), transform 160ms var(--ease-out);
+}
+.icon-btn:hover {
+  color: var(--gold-bright);
+  border-color: var(--gold);
+  background: rgba(255, 255, 255, .04);
+}
+.icon-btn:active { transform: translateY(1px); }
+.icon-btn__icon { display: inline-flex; }
+
+/* Theme toggle: show the moon in dark mode (tap → go light), sun in light. */
+#nav-theme-toggle .icon-btn__icon--sun { display: none; }
+#nav-theme-toggle .icon-btn__icon--moon { display: inline-flex; }
+[data-theme="light"] #nav-theme-toggle .icon-btn__icon--moon { display: none; }
+[data-theme="light"] #nav-theme-toggle .icon-btn__icon--sun { display: inline-flex; }
+
+/* ========================================================================== *
+ * Optional topic field (hero) — unobtrusive, expandable
+ * ========================================================================== */
+.topic {
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+  text-align: center;
+}
+.topic__toggle {
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  letter-spacing: 0.01em;
+}
+.topic__panel { margin-top: var(--s-3); }
+.topic__panel[hidden] { display: none; }
+.topic__input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--ink-600);
+  color: var(--cream);
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  transition: border-color 180ms var(--ease-out), box-shadow 180ms var(--ease-out);
+}
+.topic__input::placeholder { color: var(--cream-soft); }
+.topic__input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(201, 162, 75, .25);
+}
+
+/* ========================================================================== *
+ * Reading view: Listen (TTS) toolbar
+ * ========================================================================== */
+.letter__toolbar {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  justify-content: flex-end;
+}
+.letter-listen[hidden] { display: none; }
+/* Show the play icon by default; swap to the stop icon while speaking. */
+.letter-listen__stop { display: none; }
+.letter-listen.is-speaking .letter-listen__play { display: none; }
+.letter-listen.is-speaking .letter-listen__stop { display: inline-flex; }
+.letter-listen.is-speaking {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+  background: rgba(201, 162, 75, .1);
+}
+
+/* ========================================================================== *
+ * Further reading (citations) — secondary, collapsible <details>
+ * ========================================================================== */
+.sources {
+  width: 100%;
+  max-width: 720px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: rgba(14, 19, 32, .5);
+  overflow: hidden;
+}
+.sources[hidden] { display: none; }
+.sources__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-5);
+  cursor: pointer;
+  list-style: none;
+  color: var(--cream-soft);
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  transition: color 160ms var(--ease-out), background-color 160ms var(--ease-out);
+}
+.sources__summary::-webkit-details-marker { display: none; }
+.sources__summary:hover { color: var(--cream); background: rgba(255, 255, 255, .02); }
+.sources__icon { display: inline-flex; color: var(--gold); flex: 0 0 auto; }
+.sources__title { flex: 1 1 auto; }
+.sources__chevron {
+  display: inline-flex;
+  color: var(--cream-soft);
+  transition: transform 200ms var(--ease-out);
+}
+.sources[open] .sources__chevron { transform: rotate(180deg); }
+.sources__list {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--s-5) var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.source__fig { margin: 0; }
+.source__text {
+  margin: 0;
+  padding-left: var(--s-4);
+  border-left: 2px solid color-mix(in srgb, var(--gold) 50%, var(--border));
+  font-family: var(--font-prose);
+  font-size: 0.95rem;
+  font-style: italic;
+  line-height: 1.7;
+  color: var(--cream-soft);
+}
+.source__cite {
+  margin-top: var(--s-2);
+  padding-left: var(--s-4);
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--gold-bright);
+}
+
+/* ========================================================================== *
+ * Modal (settings) — overlay + dialog sheet, focus-trapped in JS
+ * ========================================================================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;                 /* above the nav (z 50) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-5);
+  background: rgba(5, 8, 15, .62);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity 180ms var(--ease-out);
+}
+.modal-overlay[hidden] { display: none; }
+.modal-overlay.is-open { opacity: 1; }
+body.modal-open { overflow: hidden; }
+
+.modal {
+  width: 100%;
+  max-width: 460px;
+  max-height: calc(100dvh - var(--s-7));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .03), transparent 30%),
+    var(--ink-700);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .7), 0 8px 24px rgba(0, 0, 0, .5);
+  transform: translateY(8px) scale(0.985);
+  transition: transform 200ms var(--ease-out);
+}
+.modal-overlay.is-open .modal { transform: translateY(0) scale(1); }
+
+.modal__head {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-5) var(--s-5) var(--s-4);
+  background: linear-gradient(180deg, var(--ink-700) 70%, transparent);
+}
+.modal__title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.5rem;
+  color: var(--cream);
+  letter-spacing: -0.01em;
+}
+.modal__close { width: 40px; height: 40px; }
+
+/* ---- Settings form ---- */
+.settings__form {
+  padding: 0 var(--s-5) var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+.settings__field { display: flex; flex-direction: column; gap: var(--s-2); }
+.settings__field--row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+}
+.settings__rowtext { display: flex; flex-direction: column; gap: 2px; }
+.settings__label {
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--cream);
+}
+.settings__hint {
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--cream-soft);
+}
+.settings__input {
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--ink-600);
+  color: var(--cream);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  transition: border-color 180ms var(--ease-out), box-shadow 180ms var(--ease-out);
+}
+.settings__input::placeholder { color: var(--cream-soft); }
+.settings__input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(201, 162, 75, .25);
+}
+
+/* A select that fills its field (settings) — reuses .select-wrap chrome. */
+.select-wrap--block { display: flex; }
+.select-wrap--block select { width: 100%; }
+
+/* Segmented control (theme: Dark / Light / Auto) */
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: rgba(11, 15, 26, .4);
+}
+.segmented__opt { display: block; margin: 0; }
+.segmented__opt input {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+.segmented__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  border-radius: 6px;
+  color: var(--cream-soft);
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 160ms var(--ease-out), background-color 160ms var(--ease-out);
+}
+.segmented__opt:hover .segmented__btn { color: var(--cream); }
+.segmented__opt input:checked + .segmented__btn {
+  color: #1A150B;
+  background: var(--gold);
+  font-weight: 600;
+}
+/* Keyboard focus ring on the visible label. */
+.segmented__opt input:focus-visible + .segmented__btn {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* Toggle switch (read aloud) */
+.switch {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.switch__track {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--ink-600);
+  border: 1px solid var(--border);
+  transition: background-color 180ms var(--ease-out), border-color 180ms var(--ease-out);
+}
+.switch__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--cream-soft);
+  transition: transform 180ms var(--ease-out), background-color 180ms var(--ease-out);
+}
+.switch.is-on .switch__track {
+  background: color-mix(in srgb, var(--gold) 35%, var(--ink-600));
+  border-color: var(--gold);
+}
+.switch.is-on .switch__thumb {
+  transform: translateX(20px);
+  background: var(--gold-bright);
+}
+.switch:focus-visible { outline: none; }
+.switch:focus-visible .switch__track {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.settings__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-top: var(--s-2);
+}
+.settings__status {
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  color: var(--cream-soft);
+  min-height: 1.2em;
+}
+.settings__status.is-error { color: #f1a3a3; }
+.settings__status.is-success { color: var(--gold-bright); }
+
+@media (max-width: 480px) {
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal {
+    max-width: none;
+    max-height: 92dvh;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    transform: translateY(16px);
+  }
+  .modal-overlay.is-open .modal { transform: translateY(0); }
+}
+
+/* ========================================================================== *
+ * Bookmark / star toggle (reading view toolbar)
+ * Sits beside the Listen button; outline star by default, gold-filled when
+ * saved. Reuses the ghost-button chrome so it matches Listen exactly.
+ * ========================================================================== */
+.letter__toolbar { gap: var(--s-2); align-items: center; }
+.letter-bookmark[hidden] { display: none; }
+.letter-bookmark__icon { display: inline-flex; }
+/* Filled star when saved: paint the path + warm the button like Listen does. */
+.letter-bookmark.is-saved {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+  background: rgba(201, 162, 75, .1);
+}
+.letter-bookmark.is-saved .letter-bookmark__icon svg { fill: currentColor; }
+
+/* ========================================================================== *
+ * Search overlay — a dialog sheet anchored near the top, reusing .modal-overlay
+ * (fade + body scroll-lock). The panel is its own surface (not .modal) so it can
+ * sit higher and read as a command palette.
+ * ========================================================================== */
+.search-overlay {
+  align-items: flex-start;
+  padding-top: calc(var(--nav-h) + var(--s-5));
+}
+.search-panel {
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100dvh - var(--nav-h) - var(--s-7));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .03), transparent 30%),
+    var(--ink-700);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .7), 0 8px 24px rgba(0, 0, 0, .5);
+  transform: translateY(8px) scale(0.985);
+  transition: transform 200ms var(--ease-out);
+}
+.search-overlay.is-open .search-panel { transform: translateY(0) scale(1); }
+
+.search-panel__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-5);
+  border-bottom: 1px solid var(--border);
+}
+.search-panel__icon { display: inline-flex; color: var(--gold); flex: 0 0 auto; }
+.search-panel__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--cream);
+  font-family: var(--font-ui);
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+.search-panel__input::placeholder { color: var(--cream-soft); }
+.search-panel__input:focus { outline: none; }
+/* Hide the native search clear/decoration so the field reads clean. */
+.search-panel__input::-webkit-search-decoration,
+.search-panel__input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.search-panel__close { width: 40px; height: 40px; flex: 0 0 auto; }
+
+.search-panel__hint {
+  padding: var(--s-3) var(--s-5);
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  color: var(--cream-soft);
+}
+.search-panel__status {
+  padding: 0 var(--s-5) var(--s-4);
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--cream-soft);
+}
+.search-panel__status:empty { display: none; }
+
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--s-4) var(--s-2);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.search-results:empty { display: none; }
+.search-result { margin: 0; }
+.search-result__btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  min-height: 44px;
+  padding: var(--s-3) var(--s-4);
+  margin: 2px 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--cream);
+  cursor: pointer;
+  transition: background-color 140ms var(--ease-out), border-color 140ms var(--ease-out);
+}
+.search-result__btn:hover {
+  background: rgba(255, 255, 255, .04);
+  border-color: var(--border);
+}
+.search-result__meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: 2px;
+}
+.search-result__name {
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  color: var(--gold);
+}
+.search-result__date {
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--cream-soft);
+  white-space: nowrap;
+}
+.search-result__snippet {
+  font-family: var(--font-prose);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: #cdd3de;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.search-result__mark {
+  background: rgba(201, 162, 75, .28);
+  color: var(--gold-bright);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+/* ========================================================================== *
+ * Saved (bookmarks) view
+ * ========================================================================== */
+.view--saved { max-width: 820px; }
+
+.saved__header { text-align: center; margin-bottom: var(--s-7); }
+.saved__glyph {
+  display: inline-flex;
+  color: var(--gold);
+  filter: drop-shadow(0 4px 14px rgba(201, 162, 75, .3));
+  margin-bottom: var(--s-2);
+}
+.saved__title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  color: var(--cream);
+  letter-spacing: -0.01em;
+}
+.saved__sub {
+  margin-top: var(--s-2);
+  color: var(--cream-soft);
+  font-size: 0.95rem;
+  font-weight: 300;
+}
+
+.saved__list {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.saved__list[hidden] { display: none; }
+.saved-card-item { margin: 0; }
+
+.saved-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--ink-700);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--r-md);
+  padding: var(--s-4) var(--s-5);
+  color: var(--cream);
+  cursor: pointer;
+  transition:
+    transform 180ms var(--ease-out),
+    box-shadow 180ms var(--ease-out),
+    border-color 180ms var(--ease-out),
+    background-color 180ms var(--ease-out);
+}
+.saved-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
+  background: var(--ink-600);
+}
+.saved-card--user { border-left-color: var(--violet); }
+
+.saved-card__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+}
+.saved-card__sigil { display: inline-flex; color: var(--gold); flex: 0 0 auto; }
+.saved-card--user .saved-card__sigil { color: var(--violet-bright); }
+.saved-card__role {
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  color: var(--gold);
+}
+.saved-card--user .saved-card__role { color: var(--violet-bright); }
+.saved-card__date {
+  margin-left: auto;
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--cream-soft);
+}
+.saved-card__excerpt {
+  font-family: var(--font-prose);
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: #cdd3de;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Skeleton + empty share the philosophy view's calm card treatment. */
+.saved__list--skel { gap: var(--s-4); }
+.saved__list--skel[hidden] { display: none; }
+.saved-card--skel {
+  border-left-color: var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  pointer-events: none;
+}
+
+.saved__empty {
+  max-width: 460px;
+  margin: var(--s-7) auto 0;
+  padding: var(--s-7) var(--s-5);
+  text-align: center;
+  background: rgba(22, 28, 44, .55);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-4);
+}
+.saved__empty[hidden] { display: none; }
+.saved__empty-glyph { display: inline-flex; color: var(--gold); opacity: 0.9; }
+.saved__empty-text {
+  font-family: var(--font-prose);
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--cream);
+  max-width: 36ch;
+}
+
+/* ========================================================================== *
+ * Journey (stats) view
+ * ========================================================================== */
+.view--stats { max-width: 860px; }
+
+.stats__header { text-align: center; margin-bottom: var(--s-6); }
+.stats__glyph {
+  display: inline-flex;
+  color: var(--gold);
+  filter: drop-shadow(0 4px 14px rgba(201, 162, 75, .3));
+  margin-bottom: var(--s-2);
+}
+.stats__title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.9rem, 4.4vw, 2.8rem);
+  color: var(--cream);
+  letter-spacing: -0.01em;
+}
+.stats__sub {
+  margin-top: var(--s-2);
+  color: var(--cream-soft);
+  font-size: 0.98rem;
+  font-weight: 300;
+}
+#stats-content[hidden] { display: none; }
+
+/* Headline number tiles */
+.stats__numbers {
+  list-style: none;
+  margin: 0 0 var(--s-7);
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--s-4);
+}
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-5) var(--s-3);
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .02), transparent 50%),
+    rgba(14, 19, 32, .5);
+}
+.stat-tile--streak {
+  border-color: color-mix(in srgb, var(--gold) 40%, var(--border));
+  background:
+    radial-gradient(120% 140% at 50% 0%, rgba(201, 162, 75, .12), transparent 60%),
+    rgba(14, 19, 32, .5);
+}
+.stat-tile__num {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  line-height: 1;
+  color: var(--cream);
+  font-variant-numeric: tabular-nums;
+}
+.stat-tile--streak .stat-tile__num { color: var(--gold-bright); }
+.stat-tile__flame { display: inline-flex; color: var(--gold); }
+.stat-tile--streak .stat-tile__flame { color: var(--gold-bright); }
+.stat-tile__label {
+  font-family: var(--font-ui);
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cream-soft);
+}
+
+/* Per-philosopher breakdown bars */
+.stats__breakdown[hidden] { display: none; }
+.stats__breakdown-heading {
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  color: var(--gold);
+  text-align: center;
+  margin-bottom: var(--s-5);
+}
+.stats__bars {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  max-width: 620px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.stat-bar { display: flex; flex-direction: column; gap: var(--s-2); }
+.stat-bar__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.stat-bar__name {
+  font-family: var(--font-prose);
+  font-size: 0.98rem;
+  color: var(--cream);
+}
+.stat-bar__count {
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--gold-bright);
+  font-variant-numeric: tabular-nums;
+}
+.stat-bar__track {
+  position: relative;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(40, 52, 73, .6);
+  overflow: hidden;
+}
+.stat-bar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--gold), var(--gold-bright));
+  min-width: 4px;
+}
+
+/* Stats skeleton + empty */
+.stats__content--skel[hidden] { display: none; }
+.stat-tile--skel { gap: var(--s-3); pointer-events: none; }
+.stat-tile__numskel { width: 60%; height: 30px; border-radius: 6px; }
+.stat-tile__lblskel { width: 80%; height: 11px; border-radius: 6px; }
+
+.stats__empty {
+  max-width: 460px;
+  margin: var(--s-7) auto 0;
+  padding: var(--s-7) var(--s-5);
+  text-align: center;
+  background: rgba(22, 28, 44, .55);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-4);
+}
+.stats__empty[hidden] { display: none; }
+.stats__empty-glyph { display: inline-flex; color: var(--gold); opacity: 0.9; }
+.stats__empty-text {
+  font-family: var(--font-prose);
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--cream);
+  max-width: 38ch;
+}
+
+/* ========================================================================== *
+ * LIGHT THEME — "parchment day"
+ * Re-maps the ink/cream tokens to warm parchment + dark ink while KEEPING the
+ * gold accents. Contrast verified AA: ink #2A2118 on parchment ≈ 11:1; muted
+ * brown #6A5E48 on parchment ≈ 5.6:1; gold is reserved for large text/accents.
+ * The parchment letter card already uses --paper, so it reads well in both.
+ * ========================================================================== */
+[data-theme="light"] {
+  /* Surfaces: page → lightest, cards → progressively warmer cream. */
+  --ink-900: #EFE6D2;          /* page background */
+  --ink-800: #EAE0CA;
+  --ink-700: #F3EAD7;          /* primary card surface */
+  --ink-600: #FBF4E4;          /* inputs / raised chips */
+  --border:  #D6C7A4;
+
+  /* Text: cream → dark ink; muted cream → muted brown (both AA on parchment). */
+  --cream: #2A2118;
+  --cream-soft: #6A5E48;
+
+  /* Slightly deeper gold so gold-on-parchment large text/accents read better. */
+  --gold: #A9802F;
+  --gold-bright: #C29A45;
+
+  /* Violet (timeline "you" accent) deepened for contrast on the light spine. */
+  --violet: #4F46E5;
+  --violet-bright: #4338CA;
+
+  /* Softer, warmer shadows on a light ground. */
+  --shadow-paper: 0 20px 50px -22px rgba(90, 70, 30, .35), 0 4px 12px rgba(90, 70, 30, .18);
+  --shadow-card: 0 10px 30px -16px rgba(90, 70, 30, .3);
+}
+
+/* Page background gradients: warm light washes instead of deep blue glow. */
+[data-theme="light"] body {
+  background: var(--ink-900);
+  background-image:
+    radial-gradient(1200px 800px at 50% -10%, #FBF3DF 0%, transparent 60%),
+    radial-gradient(900px 700px at 100% 100%, #F2E7CE 0%, transparent 55%);
+}
+
+/* The vignette should lighten the edges, not darken them, in day mode. */
+[data-theme="light"] .vignette {
+  background: radial-gradient(120% 120% at 50% 40%, transparent 58%, rgba(120, 96, 48, .12) 100%);
+}
+
+/* Nav: translucent parchment instead of translucent ink. */
+[data-theme="light"] .nav {
+  background: rgba(243, 234, 215, .8);
+  border-bottom-color: var(--border);
+}
+
+/* Ghost-button / icon-button hover: a warm tint reads better than white. */
+[data-theme="light"] .btn--ghost:hover,
+[data-theme="light"] .icon-btn:hover,
+[data-theme="light"] .sources__summary:hover {
+  background: rgba(169, 128, 47, .08);
+}
+
+/* The 3D backdrop is tuned for a dark ground; on parchment it would muddy the
+   page. Dim it markedly and let the parchment carry the warmth. (A CSS dim is
+   the lightest-touch fix and needs no JS in three-bg.js.) */
+[data-theme="light"] #bg-canvas { opacity: 0.32; }
+
+/* Cards / surfaces that used translucent dark fills now use the light tokens
+   with a faint parchment tint (the rgba() literals in the dark theme would be
+   near-invisible on light, so re-paint them with warm equivalents). */
+[data-theme="light"] .namecard,
+[data-theme="light"] .philosophy__empty,
+[data-theme="light"] .saved__empty,
+[data-theme="light"] .stats__empty { background: rgba(243, 234, 215, .85); }
+[data-theme="light"] .feature,
+[data-theme="light"] .stat-tile { background: rgba(251, 244, 228, .7); }
+/* Search panel + Saved cards + stat tiles read as warm parchment surfaces. */
+[data-theme="light"] .search-panel,
+[data-theme="light"] .saved-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .35), transparent 45%),
+    var(--ink-700);
+}
+[data-theme="light"] .stat-tile--streak {
+  background:
+    radial-gradient(120% 140% at 50% 0%, rgba(169, 128, 47, .12), transparent 60%),
+    rgba(251, 244, 228, .7);
+}
+/* Bar track + result highlight tuned for the lighter ground. */
+[data-theme="light"] .stat-bar__track { background: rgba(214, 199, 164, .55); }
+[data-theme="light"] .search-result__mark { background: rgba(169, 128, 47, .22); }
+[data-theme="light"] .search-result__snippet,
+[data-theme="light"] .saved-card__excerpt { color: var(--ink-text-soft); }
+[data-theme="light"] .search-result__btn:hover { background: rgba(169, 128, 47, .08); }
+[data-theme="light"] .letter-bookmark.is-saved,
+[data-theme="light"] .search-panel__close:hover { background: rgba(169, 128, 47, .12); }
+[data-theme="light"] .philosophy__field {
+  background:
+    radial-gradient(120% 140% at 50% 0%, rgba(169, 128, 47, .08), transparent 60%),
+    rgba(251, 244, 228, .7);
+}
+[data-theme="light"] .philosophy__map {
+  background:
+    radial-gradient(80% 90% at 50% 45%, rgba(79, 70, 229, .07), transparent 70%),
+    rgba(243, 234, 215, .7);
+}
+[data-theme="light"] .nav__tabs { background: rgba(234, 224, 202, .6); }
+[data-theme="light"] .segmented,
+[data-theme="light"] .switch__track { background: rgba(234, 224, 202, .8); }
+[data-theme="light"] .sources { background: rgba(243, 234, 215, .7); }
+[data-theme="light"] .salon-card,
+[data-theme="light"] .about-card,
+[data-theme="light"] .about__detail {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .35), transparent 45%),
+    var(--ink-700);
+}
+
+/* The ink-wash sweep is a dark veil; make it a warm parchment veil in day mode
+   so the transition doesn't flash black. */
+[data-theme="light"] .ink-wash {
+  background: linear-gradient(90deg, #E7DBC0 0%, #EFE6D2 50%, #E7DBC0 100%);
+}
+
+/* The textarea / inputs that hard-code a parchment colour already suit light;
+   leave them. The modal head gradient needs the light surface colour. */
+[data-theme="light"] .modal__head {
+  background: linear-gradient(180deg, var(--ink-700) 70%, transparent);
+}
+[data-theme="light"] .modal-overlay { background: rgba(90, 70, 30, .32); }
+
+/* Switch thumb: a parchment dot reads better than cream-soft (brown) here. */
+[data-theme="light"] .switch__thumb { background: #FBF4E4; }
+[data-theme="light"] .switch.is-on .switch__thumb { background: #FFFDF6; }
+
+/* On light, the timeline dot ring should be parchment, not ink. */
+[data-theme="light"] .tl-item__node { border-color: var(--ink-900); }
+
+/* ========================================================================== *
+ * Share-a-letter dialog — render the current letter to an image, then share
+ * or download. Reuses .modal-overlay / .modal (built in share.js).
+ * ========================================================================== */
+.share-modal { max-width: 520px; }
+.share-modal__body {
+  padding: 0 var(--s-5) var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+.share-preview {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--paper);
+  box-shadow: var(--shadow-card);
+  /* A gentle ceiling so a tall card scrolls instead of dominating the sheet. */
+  max-height: 52vh;
+  display: flex;
+  justify-content: center;
+}
+.share-preview__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+.share-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+}
+.share-modal__actions .btn { flex: 1 1 auto; }
+.share-modal__status {
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  color: var(--cream-soft);
+  min-height: 1.2em;
+}
+.share-modal__status:empty { min-height: 0; }
+.share-modal__status.is-error { color: #f1a3a3; }
+[data-theme="light"] .share-modal__status.is-error { color: var(--danger); }
+
+/* ========================================================================== *
+ * First-visit onboarding overlay — reuses .modal-overlay (fade + scroll-lock);
+ * the panel (.onboard) is its own surface so it can read like a centred card.
+ * ========================================================================== */
+.onboard {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100dvh - var(--s-7));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  text-align: center;
+  padding: var(--s-7) clamp(var(--s-5), 6vw, var(--s-7)) var(--s-6);
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(201, 162, 75, .08), transparent 55%),
+    linear-gradient(180deg, rgba(255, 255, 255, .03), transparent 30%),
+    var(--ink-700);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--gold);
+  border-radius: var(--r-lg);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .7), 0 8px 24px rgba(0, 0, 0, .5);
+  transform: translateY(8px) scale(0.985);
+  transition: transform 220ms var(--ease-out);
+}
+.onboard-overlay.is-open .onboard { transform: translateY(0) scale(1); }
+
+.onboard__skip {
+  position: absolute;
+  top: var(--s-4);
+  right: var(--s-5);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.85rem;
+  text-decoration: none;
+  color: var(--cream-soft);
+}
+.onboard__skip:hover { color: var(--gold-bright); text-decoration: underline; }
+
+.onboard__glyph {
+  display: inline-flex;
+  color: var(--gold);
+  filter: drop-shadow(0 4px 16px rgba(201, 162, 75, .35));
+  margin-bottom: var(--s-4);
+}
+
+.onboard__steps { position: relative; }
+.onboard__step { display: none; }
+.onboard__step.is-active { display: block; }
+.onboard__step[hidden] { display: none; }
+
+.onboard__title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--cream);
+  margin-bottom: var(--s-3);
+}
+.onboard__text {
+  font-family: var(--font-prose);
+  font-size: 1.02rem;
+  line-height: 1.7;
+  color: var(--cream);
+  max-width: 40ch;
+  margin: 0 auto;
+}
+
+.onboard__nameform { margin-top: var(--s-5); }
+.onboard__input {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--ink-600);
+  color: var(--cream);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  text-align: center;
+  transition: border-color 180ms var(--ease-out), box-shadow 180ms var(--ease-out);
+}
+.onboard__input::placeholder { color: var(--cream-soft); }
+.onboard__input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(201, 162, 75, .25);
+}
+
+.onboard__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-top: var(--s-6);
+}
+.onboard__dots {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.onboard__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background-color 200ms var(--ease-out), transform 200ms var(--ease-out);
+}
+.onboard__dot.is-on { background: var(--gold); transform: scale(1.15); }
+.onboard__foot .btn { flex: 0 0 auto; }
+
+/* Light theme: the onboarding panel reads as a warm parchment surface. */
+[data-theme="light"] .onboard {
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(169, 128, 47, .1), transparent 55%),
+    linear-gradient(180deg, rgba(255, 255, 255, .35), transparent 45%),
+    var(--ink-700);
+}
+[data-theme="light"] .share-preview { background: var(--paper); }
+
 /* ========================================================================== *
  * Reduced motion — disable transforms (fade only), freeze ambient field.
  * (3D field freeze + parallax disable handled in three-bg.js.)
@@ -1764,4 +2922,24 @@ button { font-family: inherit; }
   .about-card, .about-card:hover { transform: none !important; }
   .about-card .medallion, .about-card:hover .medallion { transform: none !important; }
   .about__detail { opacity: 1 !important; }
+
+  /* Settings modal: no slide/scale entrance — the overlay fade is already
+     instant (transition-duration zeroed above); just don't translate the sheet.
+     The chevron rotation is a state indicator and stays (transform on [open]). */
+  .modal { transform: none !important; }
+  .icon-btn:active { transform: none !important; }
+  .switch__thumb, .switch.is-on .switch__thumb { transition: none !important; }
+
+  /* Search panel: no slide/scale entrance (fade only). */
+  .search-panel { transform: none !important; }
+
+  /* Onboarding panel: fade only, no slide/scale; dots don't pulse-scale. */
+  .onboard { transform: none !important; }
+  .onboard__dot.is-on { transform: none !important; }
+
+  /* Saved cards + stat tiles: no entrance/hover lift, always visible. The bar
+     fills are set to their final width directly by stats.js (no GSAP) here. */
+  .saved-card, .saved-card:hover { transform: none !important; }
+  .saved-card-item, .stat-tile { opacity: 1 !important; }
+  .stat-bar__fill { transition: none !important; }
 }

@@ -4,8 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="description" content="Daimon — daily letters from the philosophers. A contemplative correspondence with Seneca, Marcus Aurelius, Nietzsche, Camus, and Simone Weil." />
-  <meta name="color-scheme" content="dark" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="theme-color" content="#0E1320" />
   <title>Daimon — Daily letters from the philosophers</title>
+
+  <!-- PWA: installable + offline (service worker registered in app.js) -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/static/icon.svg" />
 
   <!-- Google Fonts: Playfair Display (display), Inter (UI), Libre Baskerville (prose) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -92,9 +98,22 @@
         <button class="nav-tab is-active" type="button" data-nav="hero" aria-current="page">Home</button>
         <button class="nav-tab" type="button" data-nav="timeline">Letters</button>
         <button class="nav-tab" type="button" data-nav="salon">Salon</button>
+        <button class="nav-tab" type="button" data-nav="saved">Saved</button>
         <button class="nav-tab" type="button" data-nav="philosophy">Your philosophy</button>
+        <button class="nav-tab" type="button" data-nav="stats">Journey</button>
         <button class="nav-tab" type="button" data-nav="about">About</button>
       </div>
+
+      <!-- Search: opens an overlay to search your own correspondence -->
+      <button id="nav-search" class="icon-btn" type="button"
+              aria-label="Search your correspondence" title="Search" aria-haspopup="dialog" aria-expanded="false">
+        <span class="icon-btn__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M16.5 16.5L21 21" />
+          </svg>
+        </span>
+      </button>
 
       <label class="field-inline" for="philosopher-select">
         <span class="field-inline__label">Philosopher</span>
@@ -114,6 +133,31 @@
           </svg>
         </span>
         New letter
+      </button>
+
+      <!-- Quick theme toggle (sun in dark mode → moon in light mode) -->
+      <button id="nav-theme-toggle" class="icon-btn" type="button" aria-label="Switch theme" title="Switch theme">
+        <span class="icon-btn__icon icon-btn__icon--moon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 14.5A8 8 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5z" />
+          </svg>
+        </span>
+        <span class="icon-btn__icon icon-btn__icon--sun" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4.2" />
+            <path d="M12 2.5v2.4M12 19.1v2.4M4.6 4.6l1.7 1.7M17.7 17.7l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.6 19.4l1.7-1.7M17.7 6.3l1.7-1.7" />
+          </svg>
+        </span>
+      </button>
+
+      <!-- Settings (gear) -->
+      <button id="nav-settings" class="icon-btn" type="button" aria-label="Settings" aria-haspopup="dialog">
+        <span class="icon-btn__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3.2" />
+            <path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </span>
       </button>
     </nav>
   </header>
@@ -152,6 +196,27 @@
           <button id="hero-read" class="btn btn--gold btn--lg" type="button">Read today&rsquo;s letter</button>
           <button id="hero-browse" class="btn btn--ghost btn--lg" type="button">Browse correspondence</button>
           <button id="hero-salon" class="btn btn--ghost btn--lg" type="button">Convene the salon</button>
+        </div>
+
+        <!-- Optional topic: ask the philosopher to write about something -->
+        <div class="topic" data-anim>
+          <button id="topic-toggle" class="topic__toggle link-btn" type="button"
+                  aria-expanded="false" aria-controls="topic-panel">
+            Ask them to write about something&hellip;
+          </button>
+          <div id="topic-panel" class="topic__panel" hidden>
+            <label class="sr-only" for="topic-input">Ask them to write about (optional)</label>
+            <input
+              id="topic-input"
+              class="topic__input"
+              type="text"
+              name="topic"
+              maxlength="120"
+              spellcheck="false"
+              enterkeyhint="go"
+              placeholder="e.g. grief, ambition, how to spend a day&hellip;"
+            />
+          </div>
         </div>
 
         <!-- Name personalisation (optional) -->
@@ -253,6 +318,48 @@
 
       <!-- The letter -->
       <article id="letter" class="letter" aria-live="polite" hidden>
+        <!-- Letter toolbar: star this letter + read it aloud (hidden if TTS unsupported) -->
+        <div class="letter__toolbar">
+          <button id="letter-bookmark" class="btn btn--ghost btn--sm letter-bookmark" type="button"
+                  hidden aria-pressed="false" aria-label="Save this letter">
+            <span class="btn__icon letter-bookmark__icon" aria-hidden="true">
+              <!-- Outline star (default) vs filled star (saved): both share the path;
+                   CSS toggles the fill via .is-saved. -->
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3.6l2.6 5.27 5.82.85-4.21 4.1.99 5.79L12 17.88l-5.2 2.73.99-5.79-4.21-4.1 5.82-.85z" />
+              </svg>
+            </span>
+            <span class="btn__label letter-bookmark__label">Save</span>
+          </button>
+          <button id="letter-listen" class="btn btn--ghost btn--sm letter-listen" type="button"
+                  hidden aria-pressed="false">
+            <span class="btn__icon letter-listen__play" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 5 6 9H3v6h3l5 4z" />
+                <path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" />
+              </svg>
+            </span>
+            <span class="btn__icon letter-listen__stop" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="6" y="6" width="12" height="12" rx="1.5" />
+              </svg>
+            </span>
+            <span class="btn__label letter-listen__label">Listen</span>
+          </button>
+          <button id="letter-share" class="btn btn--ghost btn--sm letter-share" type="button"
+                  hidden aria-label="Share this letter as an image">
+            <span class="btn__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <path d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4" />
+              </svg>
+            </span>
+            <span class="btn__label letter-share__label">Share</span>
+          </button>
+        </div>
+
         <div class="letter__paper">
           <!-- Decorative wax seal -->
           <span class="wax-seal" aria-hidden="true">
@@ -296,6 +403,26 @@
             </svg>
           </div>
         </div>
+
+        <!-- Further reading: the real passages that grounded this letter.
+             Hidden when the response carries no sources (e.g. the sample). -->
+        <details id="further-reading" class="sources" hidden>
+          <summary class="sources__summary">
+            <span class="sources__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5z" />
+                <path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H19v3H6.5A2.5 2.5 0 0 1 4 20.5z" />
+              </svg>
+            </span>
+            <span class="sources__title">Drawn from their own writings</span>
+            <span class="sources__chevron" aria-hidden="true">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M4 6l4 4 4-4" />
+              </svg>
+            </span>
+          </summary>
+          <ul id="sources-list" class="sources__list"></ul>
+        </details>
 
         <!-- Reply composer -->
         <form id="reply-form" class="composer" novalidate>
@@ -409,6 +536,96 @@
       ></div>
     </section>
 
+    <!-- ===== Saved / bookmarks view ===== -->
+    <section id="view-saved" class="view view--saved" aria-labelledby="saved-title" hidden>
+      <header class="saved__header">
+        <span class="saved__glyph" aria-hidden="true">
+          <svg viewBox="0 0 48 48" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <!-- a star (the bookmark mark) -->
+            <path d="M24 6l5.3 10.7 11.8 1.7-8.5 8.3 2 11.7L24 33l-10.6 5.6 2-11.7-8.5-8.3 11.8-1.7z" />
+          </svg>
+        </span>
+        <h2 id="saved-title" class="saved__title">Saved letters</h2>
+        <p class="saved__sub">The letters you have starred to keep.</p>
+      </header>
+
+      <!-- Loading skeleton: a few card placeholders -->
+      <div id="saved-loading" class="saved__list saved__list--skel" hidden aria-hidden="true">
+        <div class="saved-card saved-card--skel"><div class="skel skel--meta"></div><div class="skel skel--line"></div><div class="skel skel--line short"></div></div>
+        <div class="saved-card saved-card--skel"><div class="skel skel--meta"></div><div class="skel skel--line"></div><div class="skel skel--line short"></div></div>
+        <div class="saved-card saved-card--skel"><div class="skel skel--meta"></div><div class="skel skel--line"></div><div class="skel skel--line short"></div></div>
+      </div>
+
+      <!-- Empty state -->
+      <div id="saved-empty" class="saved__empty" hidden>
+        <span class="saved__empty-glyph" aria-hidden="true">
+          <svg viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M24 9l4.3 8.7 9.6 1.4-7 6.8 1.7 9.6L24 41l-8.6 4.5 1.7-9.6-7-6.8 9.6-1.4z" opacity="0.6" />
+          </svg>
+        </span>
+        <p class="saved__empty-text">Star a letter to keep it here.</p>
+        <button id="saved-empty-cta" class="btn btn--gold" type="button">Read today&rsquo;s letter</button>
+      </div>
+
+      <!-- The saved cards (built by bookmarks.js) -->
+      <ol id="saved-list" class="saved__list" aria-label="Your saved letters"></ol>
+    </section>
+
+    <!-- ===== Journey / stats view ===== -->
+    <section id="view-stats" class="view view--stats" aria-labelledby="stats-title" hidden>
+      <header class="stats__header">
+        <span class="stats__glyph" aria-hidden="true">
+          <svg viewBox="0 0 48 48" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <!-- a small ascending path: a journey taking shape -->
+            <path d="M6 38l9-10 7 5 8-13 7 6" />
+            <circle cx="6" cy="38" r="1.6" fill="currentColor" stroke="none" />
+            <circle cx="22" cy="33" r="1.6" fill="currentColor" stroke="none" />
+            <circle cx="37" cy="32" r="1.6" fill="currentColor" stroke="none" />
+            <path d="M37 10h5v5" opacity="0.55" />
+          </svg>
+        </span>
+        <h2 id="stats-title" class="stats__title">Your journey</h2>
+        <p class="stats__sub">A measure of your correspondence so far.</p>
+      </header>
+
+      <!-- Loading skeleton: stat tiles + a couple of bars -->
+      <div id="stats-loading" class="stats__content stats__content--skel" hidden aria-hidden="true">
+        <div class="stats__numbers">
+          <div class="stat-tile stat-tile--skel"><span class="skel stat-tile__numskel"></span><span class="skel stat-tile__lblskel"></span></div>
+          <div class="stat-tile stat-tile--skel"><span class="skel stat-tile__numskel"></span><span class="skel stat-tile__lblskel"></span></div>
+          <div class="stat-tile stat-tile--skel"><span class="skel stat-tile__numskel"></span><span class="skel stat-tile__lblskel"></span></div>
+          <div class="stat-tile stat-tile--skel"><span class="skel stat-tile__numskel"></span><span class="skel stat-tile__lblskel"></span></div>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div id="stats-empty" class="stats__empty" hidden>
+        <span class="stats__empty-glyph" aria-hidden="true">
+          <svg viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 36l8-9 7 4 7-12 6 6" opacity="0.6" />
+            <circle cx="8" cy="36" r="1.6" fill="currentColor" stroke="none" opacity="0.6" />
+          </svg>
+        </span>
+        <p class="stats__empty-text">
+          Your journey begins with the first letter. Read one, write a reply,
+          then return to see it take shape.
+        </p>
+        <button id="stats-empty-cta" class="btn btn--gold" type="button">Read today&rsquo;s letter</button>
+      </div>
+
+      <!-- The figures (built by stats.js) -->
+      <div id="stats-content" hidden>
+        <!-- Headline numbers: letters / replies / active days / streak -->
+        <ul id="stats-numbers" class="stats__numbers" aria-label="Your figures so far"></ul>
+
+        <!-- Per-philosopher breakdown as labelled bars -->
+        <section class="stats__breakdown" aria-labelledby="stats-breakdown-heading">
+          <h3 id="stats-breakdown-heading" class="stats__breakdown-heading">Letters by philosopher</h3>
+          <ul id="stats-bars" class="stats__bars"></ul>
+        </section>
+      </div>
+    </section>
+
     <!-- ===== Your philosophy view ===== -->
     <section id="view-philosophy" class="view view--philosophy" aria-labelledby="philosophy-title" hidden>
       <header class="philosophy__header">
@@ -514,6 +731,236 @@
     </section>
   </main>
 
+  <!-- ===== Settings modal ===== -->
+  <div id="settings-overlay" class="modal-overlay" hidden>
+    <div
+      id="settings-dialog"
+      class="modal settings"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="settings-title"
+      tabindex="-1"
+    >
+      <div class="modal__head">
+        <h2 id="settings-title" class="modal__title">Settings</h2>
+        <button id="settings-close" class="icon-btn modal__close" type="button" aria-label="Close settings">
+          <span class="icon-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </span>
+        </button>
+      </div>
+
+      <form id="settings-form" class="settings__form" novalidate>
+        <!-- Name -->
+        <div class="settings__field">
+          <label class="settings__label" for="settings-name">What the philosophers call you</label>
+          <input
+            id="settings-name"
+            class="settings__input"
+            type="text"
+            name="name"
+            maxlength="60"
+            autocomplete="given-name"
+            spellcheck="false"
+            enterkeyhint="done"
+          />
+        </div>
+
+        <!-- Theme -->
+        <div class="settings__field">
+          <span class="settings__label" id="settings-theme-label">Theme</span>
+          <div class="segmented" role="radiogroup" aria-labelledby="settings-theme-label">
+            <label class="segmented__opt">
+              <input type="radio" name="theme" value="dark" />
+              <span class="segmented__btn">Dark</span>
+            </label>
+            <label class="segmented__opt">
+              <input type="radio" name="theme" value="light" />
+              <span class="segmented__btn">Light</span>
+            </label>
+            <label class="segmented__opt">
+              <input type="radio" name="theme" value="" />
+              <span class="segmented__btn">Auto</span>
+            </label>
+          </div>
+          <p class="settings__hint">&ldquo;Auto&rdquo; follows your device&rsquo;s appearance.</p>
+        </div>
+
+        <!-- Read aloud -->
+        <div class="settings__field settings__field--row">
+          <span class="settings__rowtext">
+            <span class="settings__label" id="settings-tts-label">Read aloud</span>
+            <span class="settings__hint">Speak each new letter automatically.</span>
+          </span>
+          <button
+            id="settings-tts"
+            class="switch"
+            type="button"
+            role="switch"
+            aria-checked="false"
+            aria-labelledby="settings-tts-label"
+          >
+            <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+          </button>
+        </div>
+
+        <!-- Default philosopher -->
+        <div class="settings__field">
+          <label class="settings__label" for="settings-default-phil">Default philosopher</label>
+          <span class="select-wrap select-wrap--block">
+            <select id="settings-default-phil" name="default_philosopher"></select>
+            <span class="select-wrap__chevron" aria-hidden="true">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M4 6l4 4 4-4" />
+              </svg>
+            </span>
+          </span>
+        </div>
+
+        <div class="settings__foot">
+          <p id="settings-status" class="settings__status" role="status" aria-live="polite"></p>
+          <button id="settings-save" class="btn btn--gold btn--sm" type="submit">
+            <span class="btn__label">Save</span>
+            <span class="btn__spinner" aria-hidden="true"></span>
+            <span class="btn__check" aria-hidden="true">
+              <svg viewBox="0 0 18 18" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 9.5l3.2 3.2L14 5.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== Search overlay ===== -->
+  <div id="search-overlay" class="modal-overlay search-overlay" hidden>
+    <div
+      id="search-dialog"
+      class="search-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="search-heading"
+    >
+      <h2 id="search-heading" class="sr-only">Search your correspondence</h2>
+
+      <div class="search-panel__bar">
+        <span class="search-panel__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M16.5 16.5L21 21" />
+          </svg>
+        </span>
+        <input
+          id="search-input"
+          class="search-panel__input"
+          type="search"
+          name="q"
+          autocomplete="off"
+          spellcheck="false"
+          enterkeyhint="search"
+          placeholder="Search your letters and replies&hellip;"
+          aria-label="Search your correspondence"
+          aria-controls="search-results"
+          aria-describedby="search-hint"
+        />
+        <button id="search-close" class="icon-btn search-panel__close" type="button" aria-label="Close search">
+          <span class="icon-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </span>
+        </button>
+      </div>
+
+      <p id="search-hint" class="search-panel__hint">Type to search your own correspondence. Press Esc to close.</p>
+
+      <!-- Results (built by search.js); aria-live announces counts as they update -->
+      <ul id="search-results" class="search-results" aria-label="Search results"></ul>
+      <p id="search-status" class="search-panel__status" role="status" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <!-- ===== First-visit onboarding overlay =====
+       Shown once (gated by localStorage 'daimon.onboarded'); a few reverent
+       steps introducing Daimon + a name prompt. Driven by onboarding.js. -->
+  <div id="onboard-overlay" class="modal-overlay onboard-overlay" hidden>
+    <div
+      id="onboard-dialog"
+      class="onboard"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="onboard-title"
+      aria-describedby="onboard-text"
+      tabindex="-1"
+    >
+      <button id="onboard-skip" class="link-btn onboard__skip" type="button">Skip</button>
+
+      <div class="onboard__glyph" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.4">
+          <circle cx="32" cy="32" r="22" />
+          <circle cx="32" cy="32" r="4" fill="currentColor" stroke="none" />
+          <circle cx="53" cy="18" r="3.2" fill="currentColor" stroke="none" />
+          <path d="M32 10a22 22 0 0 1 19.5 11.7" opacity="0.5" />
+        </svg>
+      </div>
+
+      <!-- The steps (one shown at a time; onboarding.js toggles .is-active). -->
+      <div class="onboard__steps">
+        <section class="onboard__step is-active" data-step="0">
+          <h2 id="onboard-title" class="onboard__title">Welcome to Daimon</h2>
+          <p id="onboard-text" class="onboard__text">
+            Each day, one of history&rsquo;s great philosophers writes you a short
+            letter &mdash; Seneca, Marcus Aurelius, Nietzsche, Camus, or Simone
+            Weil &mdash; each in their own voice.
+          </p>
+        </section>
+
+        <section class="onboard__step" data-step="1" hidden>
+          <h2 class="onboard__title">A correspondence of your own</h2>
+          <p class="onboard__text">
+            Reply when you like. Convene a salon to put one question to several
+            minds at once. Over time, watch your own philosophy take shape.
+          </p>
+        </section>
+
+        <section class="onboard__step" data-step="2" hidden>
+          <h2 class="onboard__title">What may the philosophers call you?</h2>
+          <p class="onboard__text">
+            A name is optional &mdash; the philosophers will simply say
+            &ldquo;Friend&rdquo; if you&rsquo;d rather not.
+          </p>
+          <form id="onboard-name-form" class="onboard__nameform" novalidate>
+            <label class="sr-only" for="onboard-name">Your name (optional)</label>
+            <input
+              id="onboard-name"
+              class="onboard__input"
+              type="text"
+              name="name"
+              maxlength="60"
+              autocomplete="given-name"
+              spellcheck="false"
+              enterkeyhint="done"
+              placeholder="Your name&hellip;"
+            />
+          </form>
+        </section>
+      </div>
+
+      <!-- Progress dots + controls -->
+      <div class="onboard__foot">
+        <div class="onboard__dots" role="presentation">
+          <span class="onboard__dot is-on" data-dot="0"></span>
+          <span class="onboard__dot" data-dot="1"></span>
+          <span class="onboard__dot" data-dot="2"></span>
+        </div>
+        <button id="onboard-next" class="btn btn--gold" type="button">Next</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== CDN libraries: Three.js r160 and GSAP 3 (no build step) =====
        jsDelivr serves three.min.js with a correct application/javascript MIME
        type + CORS headers; cdnjs's copy is blocked by some browsers' Opaque
@@ -526,6 +973,12 @@
   <script src="/static/salon.js" defer></script>
   <script src="/static/philosophy.js" defer></script>
   <script src="/static/about.js" defer></script>
+  <script src="/static/settings.js" defer></script>
+  <script src="/static/search.js" defer></script>
+  <script src="/static/bookmarks.js" defer></script>
+  <script src="/static/stats.js" defer></script>
+  <script src="/static/share.js" defer></script>
+  <script src="/static/onboarding.js" defer></script>
   <script src="/static/app.js" defer></script>
 </body>
 </html>

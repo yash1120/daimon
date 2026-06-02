@@ -1,0 +1,20 @@
+{
+  "name": "Daimon",
+  "short_name": "Daimon",
+  "description": "Daily letters from the philosophers — a contemplative correspondence with Seneca, Marcus Aurelius, Nietzsche, Camus, and Simone Weil.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0E1320",
+  "theme_color": "#0E1320",
+  "categories": ["education", "lifestyle", "books"],
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

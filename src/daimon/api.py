@@ -20,12 +20,18 @@ from pydantic import BaseModel, Field
 from .db import (
     backend,
     get_letter as db_get_letter,
+    get_prefs,
     get_user_name,
     init_db,
     latest_philosopher_letter,
+    list_bookmarks,
     recent_letters,
     save_letter,
+    search_letters,
+    set_bookmark,
+    set_prefs,
     set_user_name,
+    stats as db_stats,
     user_replies,
 )
 from .limits import check_and_consume
@@ -226,6 +232,7 @@ def _fetch_letter(letter_id: int) -> dict | None:
 # --------------------------------------------------------------------------- #
 class GenerateRequest(BaseModel):
     philosopher: str = Field(default="seneca")
+    topic: str | None = None
 
 
 class ReplyRequest(BaseModel):
@@ -243,6 +250,17 @@ class MeRequest(BaseModel):
     name: str = ""
 
 
+class BookmarkRequest(BaseModel):
+    on: bool = True
+
+
+class PrefsRequest(BaseModel):
+    name: str | None = None
+    theme: str | None = None
+    tts: bool | None = None
+    default_philosopher: str | None = None
+
+
 # --------------------------------------------------------------------------- #
 # Page + static asset routes                                                   #
 # --------------------------------------------------------------------------- #
@@ -258,6 +276,22 @@ def index(request: Request) -> FileResponse:
 
 # Serve the whole web/ folder at /static (styles.css, app.js, three-bg.js, …).
 # index.html references assets as /static/<file>.
+@app.get("/sw.js", include_in_schema=False)
+def service_worker() -> FileResponse:
+    # Served from root so the service worker's scope is the whole app.
+    resp = FileResponse(WEB_DIR / "sw.js", media_type="application/javascript")
+    resp.headers["Service-Worker-Allowed"] = "/"
+    resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
+@app.get("/manifest.webmanifest", include_in_schema=False)
+def manifest() -> FileResponse:
+    return FileResponse(
+        WEB_DIR / "manifest.webmanifest", media_type="application/manifest+json"
+    )
+
+
 app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
 
 
@@ -316,6 +350,7 @@ def get_letter(letter_id: int, sid: str = Depends(session_id)) -> dict:
         "body": letter["body"],
         "created_at": letter["created_at"],
         "display_name": _display_name(letter["philosopher"]),
+        "bookmarked": bool(letter.get("bookmarked")),
     }
 
 
@@ -336,17 +371,20 @@ def generate(req: GenerateRequest, sid: str = Depends(session_id)) -> dict:
         raise HTTPException(status_code=429, detail=message)
 
     init_db()
+    topic = (req.topic or "").strip() or None
 
     sample = False
+    sources: list = []
     try:
         # Imported lazily so a broken/absent LLM stack can't stop the app
         # from importing, and so the sample path stays available regardless.
         from .graph import generate_letter
 
         result = generate_letter(
-            philosopher, session_id=sid, user_name=get_user_name(sid)
+            philosopher, session_id=sid, user_name=get_user_name(sid), topic=topic
         )
         body = (result.get("final") or "").strip()
+        sources = result.get("sources") or []
         if not body:
             raise RuntimeError("Empty letter returned")
     except Exception:
@@ -365,6 +403,10 @@ def generate(req: GenerateRequest, sid: str = Depends(session_id)) -> dict:
         "body": body,
         "created_at": created_at,
         "sample": sample,
+        "sources": [
+            {"text": s.get("text", ""), "philosopher": s.get("philosopher", "")}
+            for s in sources
+        ],
     }
 
 
@@ -429,6 +471,68 @@ def set_me(req: MeRequest, sid: str = Depends(session_id)) -> dict:
     if name:
         set_user_name(sid, name)
     return {"name": name}
+
+
+def _letter_brief(L: dict) -> dict:
+    return {
+        "id": L["id"],
+        "philosopher": L["philosopher"],
+        "display_name": _display_name(L["philosopher"]),
+        "role": L["role"],
+        "body": L["body"],
+        "created_at": L["created_at"],
+    }
+
+
+@app.post("/api/letters/{letter_id}/bookmark")
+def bookmark(letter_id: int, req: BookmarkRequest, sid: str = Depends(session_id)) -> dict:
+    letter = db_get_letter(letter_id)
+    if letter is None or letter.get("session_id") != sid:
+        raise HTTPException(status_code=404, detail="Letter not found")
+    set_bookmark(letter_id, sid, req.on)
+    return {"id": letter_id, "bookmarked": bool(req.on)}
+
+
+@app.get("/api/bookmarks")
+def bookmarks(sid: str = Depends(session_id)) -> list[dict]:
+    return [_letter_brief(L) for L in list_bookmarks(sid)]
+
+
+@app.get("/api/search")
+def search(q: str = "", sid: str = Depends(session_id)) -> list[dict]:
+    q = (q or "").strip()
+    if not q:
+        return []
+    return [_letter_brief(L) for L in search_letters(sid, q)]
+
+
+@app.get("/api/stats")
+def stats(sid: str = Depends(session_id)) -> dict:
+    s = db_stats(sid)
+    s["by_philosopher"] = {
+        _display_name(k): v for k, v in s.get("by_philosopher", {}).items()
+    }
+    return s
+
+
+@app.get("/api/prefs")
+def prefs(sid: str = Depends(session_id)) -> dict:
+    return get_prefs(sid)
+
+
+@app.post("/api/prefs")
+def save_prefs(req: PrefsRequest, sid: str = Depends(session_id)) -> dict:
+    fields = {k: v for k, v in req.model_dump().items() if v is not None}
+    if "name" in fields:
+        fields["name"] = fields["name"].strip()[:60]
+    if (
+        "default_philosopher" in fields
+        and fields["default_philosopher"] not in available_personas()
+    ):
+        fields.pop("default_philosopher")
+    if fields:
+        set_prefs(sid, **fields)
+    return get_prefs(sid)
 
 
 @app.get("/api/health")

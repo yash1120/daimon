@@ -14,7 +14,10 @@
 
   // Logical ordering of views: forward = enter from the right/below,
   // backward = enter from the left/above (continuity of direction).
-  const VIEW_ORDER = { hero: 0, reading: 1, timeline: 2, salon: 3, philosophy: 4, about: 5 };
+  const VIEW_ORDER = {
+    hero: 0, reading: 1, timeline: 2, salon: 3, saved: 4,
+    philosophy: 5, stats: 6, about: 7,
+  };
 
   // Map a philosopher key to its inline SVG sigil id (defined in index.html).
   const SIGIL_KEYS = ["seneca", "aurelius", "nietzsche", "camus", "weil"];
@@ -34,7 +37,9 @@
     viewReading: document.getElementById("view-reading"),
     viewTimeline: document.getElementById("view-timeline"),
     viewSalon: document.getElementById("view-salon"),
+    viewSaved: document.getElementById("view-saved"),
     viewPhilosophy: document.getElementById("view-philosophy"),
+    viewStats: document.getElementById("view-stats"),
     viewAbout: document.getElementById("view-about"),
 
     heroRead: document.getElementById("hero-read"),
@@ -66,6 +71,26 @@
     nameSave: document.getElementById("name-save"),
     nameStatus: document.getElementById("name-status"),
     brandFor: document.getElementById("brand-for"),
+
+    themeToggle: document.getElementById("nav-theme-toggle"),
+
+    // Optional topic field (hero)
+    topicToggle: document.getElementById("topic-toggle"),
+    topicPanel: document.getElementById("topic-panel"),
+    topicInput: document.getElementById("topic-input"),
+
+    // Read-aloud (TTS) on the reading view
+    listenBtn: document.getElementById("letter-listen"),
+
+    // Bookmark / star toggle on the reading view
+    bookmarkBtn: document.getElementById("letter-bookmark"),
+
+    // Search affordance in the nav (opens the search overlay)
+    searchBtn: document.getElementById("nav-search"),
+
+    // Further reading (citations)
+    sources: document.getElementById("further-reading"),
+    sourcesList: document.getElementById("sources-list"),
   };
 
   // ---- App state ----
@@ -73,7 +98,12 @@
     philosopher: "seneca",
     philosophers: [],
     currentLetterId: null,
+    currentBookmarked: false,   // is the currently shown letter starred?
     name: "",
+    theme: "",          // "", "dark", "light" — "" means follow system (auto)
+    tts: false,         // auto-read newly generated letters aloud
+    letterText: "",     // plain text of the current letter (for TTS)
+    sample: false,      // is the current letter a sample?
   };
 
   // ---- Helpers ----
@@ -140,13 +170,221 @@
     return Array.prototype.slice.call(els.bodyEl.querySelectorAll("p"));
   }
 
+  // ---- Theme (dark / light "parchment day" / auto) ----
+  // The saved pref is "", "dark", or "light". "" = follow the system. We set a
+  // concrete data-theme on <html> ("dark"|"light") so CSS overrides apply, and
+  // remember the *preference* (which may be "") in state for round-tripping.
+  const rootEl = document.documentElement;
+  const sysDark = window.matchMedia("(prefers-color-scheme: dark)");
+
+  function resolvedTheme(pref) {
+    if (pref === "dark" || pref === "light") return pref;
+    return sysDark.matches ? "dark" : "light";
+  }
+
+  // Apply a *preference* ("", "dark", "light") to the document + nav button.
+  function applyTheme(pref) {
+    state.theme = (pref === "dark" || pref === "light") ? pref : "";
+    const resolved = resolvedTheme(state.theme);
+    rootEl.setAttribute("data-theme", resolved);
+    const metaCs = document.querySelector('meta[name="color-scheme"]');
+    if (metaCs) metaCs.setAttribute("content", resolved === "light" ? "light dark" : "dark light");
+    if (els.themeToggle) {
+      const next = resolved === "dark" ? "light" : "dark";
+      els.themeToggle.setAttribute(
+        "aria-label",
+        "Switch to " + next + " theme"
+      );
+      els.themeToggle.setAttribute("title", "Switch to " + next + " theme");
+    }
+  }
+
+  // Follow the system when (and only when) the preference is "auto" ("").
+  sysDark.addEventListener("change", function () {
+    if (!state.theme) applyTheme("");
+  });
+
+  // The nav button flips between the two *concrete* themes and persists it.
+  function toggleTheme() {
+    const resolved = resolvedTheme(state.theme);
+    const next = resolved === "dark" ? "light" : "dark";
+    applyTheme(next);
+    persistPrefs({ theme: next });
+    if (window.DaimonSettings && window.DaimonSettings.reflect) {
+      window.DaimonSettings.reflect({ theme: next });
+    }
+  }
+
+  // Persist a subset of prefs without blocking the UI; failures are silent
+  // (prefs are an enhancement, never load-bearing).
+  function persistPrefs(patch) {
+    return api("/api/prefs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    }).catch(function () { /* non-fatal */ });
+  }
+
+  // ---- Read-aloud (Web Speech API) ----
+  const synth = ("speechSynthesis" in window) ? window.speechSynthesis : null;
+  let speaking = false;
+  let speakUtter = null;
+
+  function ttsSupported() { return !!synth; }
+
+  function setListenState(on) {
+    speaking = on;
+    if (!els.listenBtn) return;
+    els.listenBtn.classList.toggle("is-speaking", on);
+    els.listenBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    const label = els.listenBtn.querySelector(".letter-listen__label");
+    if (label) label.textContent = on ? "Stop" : "Listen";
+    els.listenBtn.setAttribute("aria-label", on ? "Stop reading aloud" : "Listen to this letter");
+  }
+
+  function stopSpeaking() {
+    if (!synth) return;
+    try { synth.cancel(); } catch (_) {}
+    speakUtter = null;
+    setListenState(false);
+  }
+
+  function speakLetter() {
+    if (!synth || !state.letterText) return;
+    stopSpeaking();
+    const u = new SpeechSynthesisUtterance(state.letterText);
+    u.rate = 0.95;       // a calm, unhurried pace
+    u.pitch = 1;
+    u.lang = document.documentElement.lang || "en";
+    u.onend = function () { if (speakUtter === u) setListenState(false); };
+    u.onerror = function () { if (speakUtter === u) setListenState(false); };
+    speakUtter = u;
+    setListenState(true);
+    try { synth.speak(u); } catch (_) { setListenState(false); }
+  }
+
+  function toggleSpeaking() {
+    if (speaking) stopSpeaking();
+    else speakLetter();
+  }
+
+  // ---- Bookmark / star the current letter ----
+  // The star reflects state.currentBookmarked. It posts to
+  // POST /api/letters/{id}/bookmark {on} and reflects the returned state.
+  // Shown only when a real, saved letter is on screen (hidden for the error /
+  // "could not be delivered" placeholder, which has no id).
+  let bookmarking = false;
+
+  function reflectBookmark(on) {
+    state.currentBookmarked = !!on;
+    if (!els.bookmarkBtn) return;
+    els.bookmarkBtn.classList.toggle("is-saved", !!on);
+    els.bookmarkBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    els.bookmarkBtn.setAttribute(
+      "aria-label", on ? "Remove this letter from saved" : "Save this letter"
+    );
+    const label = els.bookmarkBtn.querySelector(".letter-bookmark__label");
+    if (label) label.textContent = on ? "Saved" : "Save";
+  }
+
+  // Show/initialise the star for a letter with a known id + bookmarked flag.
+  function setupBookmark(id, bookmarked) {
+    if (!els.bookmarkBtn) return;
+    if (id == null) {
+      els.bookmarkBtn.hidden = true;
+      return;
+    }
+    els.bookmarkBtn.hidden = false;
+    els.bookmarkBtn.disabled = false;
+    bookmarking = false;
+    reflectBookmark(!!bookmarked);
+  }
+
+  function toggleBookmark() {
+    if (bookmarking) return;
+    const id = state.currentLetterId;
+    if (id == null) return;
+    const next = !state.currentBookmarked;
+
+    // Optimistic: reflect immediately, roll back on failure.
+    bookmarking = true;
+    reflectBookmark(next);
+    if (els.bookmarkBtn) els.bookmarkBtn.disabled = true;
+
+    api("/api/letters/" + id + "/bookmark", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ on: next }),
+    })
+      .then(function (data) {
+        reflectBookmark(data && typeof data.bookmarked === "boolean" ? data.bookmarked : next);
+        // Keep the Saved view fresh if it has already been built.
+        if (window.DaimonBookmarks && window.DaimonBookmarks.invalidate) {
+          window.DaimonBookmarks.invalidate();
+        }
+      })
+      .catch(function () {
+        reflectBookmark(!next); // roll back
+      })
+      .then(function () {
+        bookmarking = false;
+        if (els.bookmarkBtn) els.bookmarkBtn.disabled = false;
+      });
+  }
+
+  // ---- Further reading (citations) ----
+  function renderSources(sources) {
+    if (!els.sources || !els.sourcesList) return;
+    els.sourcesList.innerHTML = "";
+    const list = Array.isArray(sources) ? sources.filter(function (s) {
+      return s && String(s.text || "").trim();
+    }) : [];
+
+    if (!list.length) {
+      els.sources.hidden = true;
+      els.sources.open = false;
+      return;
+    }
+
+    const frag = document.createDocumentFragment();
+    list.forEach(function (s) {
+      const li = document.createElement("li");
+      li.className = "source";
+
+      const fig = document.createElement("figure");
+      fig.className = "source__fig";
+
+      const quote = document.createElement("blockquote");
+      quote.className = "source__text";
+      quote.textContent = String(s.text || "").trim();
+      fig.appendChild(quote);
+
+      const who = s.philosopher
+        ? (displayNameFor(s.philosopher) || s.philosopher)
+        : "";
+      if (who) {
+        const cite = document.createElement("figcaption");
+        cite.className = "source__cite";
+        cite.textContent = "— " + who;
+        fig.appendChild(cite);
+      }
+
+      li.appendChild(fig);
+      frag.appendChild(li);
+    });
+    els.sourcesList.appendChild(frag);
+    els.sources.hidden = false;
+  }
+
   // ---- View switching: GSAP "ink wash" transition (directional) ----
   const VIEWS = {
     hero: els.viewHero,
     reading: els.viewReading,
     timeline: els.viewTimeline,
     salon: els.viewSalon,
+    saved: els.viewSaved,
     philosophy: els.viewPhilosophy,
+    stats: els.viewStats,
     about: els.viewAbout,
   };
 
@@ -184,6 +422,9 @@
     const prev = VIEWS[prevName];
     currentView = name;
     syncNav(name);
+
+    // Stop any read-aloud when navigating away from the letter.
+    if (prevName === "reading" && name !== "reading") stopSpeaking();
 
     // Reduced motion OR no GSAP → simple opacity fade, no wash, no translate.
     if (!hasGsap || REDUCE) {
@@ -268,8 +509,13 @@
   }
 
   // ---- Reading view: reveal a letter ----
-  function revealLetter(data) {
+  // opts.autoRead — allow TTS auto-read if the pref is on (only for freshly
+  // generated letters, never on first page load without interaction).
+  function revealLetter(data, opts) {
+    opts = opts || {};
+    stopSpeaking(); // never carry speech across letters
     state.currentLetterId = data.id;
+    state.sample = !!data.sample;
     els.author.textContent = data.display_name || displayNameFor(data.philosopher);
     els.date.textContent = formatDate(data.created_at);
     els.sampleChip.hidden = !data.sample;
@@ -279,8 +525,35 @@
 
     const paras = renderBody(data.body);
 
+    // Capture plain text + author for read-aloud; toggle the Listen button.
+    const author = els.author.textContent || "";
+    state.letterText = (author ? author + ". " : "") + String(data.body || "").replace(/\s+/g, " ").trim();
+    if (els.listenBtn) {
+      els.listenBtn.hidden = !ttsSupported();
+      setListenState(false);
+    }
+
+    // Share: a real letter with text is on screen → offer share-as-image.
+    if (window.DaimonShare && window.DaimonShare.setAvailable) {
+      window.DaimonShare.setAvailable(!!state.letterText);
+    }
+
+    // Further reading: render only when sources are present.
+    renderSources(data.sources);
+
+    // Star: show + initialise from the letter's bookmarked flag (the generate
+    // response omits it → defaults to false, which is correct for a brand-new
+    // letter; opened letters carry the real flag from GET /api/letters/{id}).
+    setupBookmark(data.id, data.bookmarked);
+
     els.loading.hidden = true;
     els.letter.hidden = false;
+
+    // Auto-read a freshly generated letter when the user has TTS on (requires a
+    // prior user gesture, which generating a letter always is).
+    if (opts.autoRead && state.tts && ttsSupported() && state.letterText) {
+      speakLetter();
+    }
 
     if (!hasGsap || REDUCE) {
       els.letter.style.opacity = "1";
@@ -316,17 +589,23 @@
     showLoading();
     resetReplyForm();
 
+    // Optional topic: only sent when the visitor has typed one.
+    const topic = els.topicInput ? els.topicInput.value.trim() : "";
+    const payload = { philosopher: state.philosopher };
+    if (topic) payload.topic = topic;
+
     api("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ philosopher: state.philosopher }),
+      body: JSON.stringify(payload),
     })
       .then(function (data) {
-        revealLetter(data);
+        revealLetter(data, { autoRead: true });
       })
       .catch(function (err) {
         els.loading.hidden = true;
         els.letter.hidden = false;
+        clearLetterExtras();
         els.author.textContent = "A letter could not be delivered";
         els.date.textContent = "";
         renderBody(
@@ -340,6 +619,19 @@
       });
   }
 
+  // Hide TTS + sources + star for an error/placeholder letter (no id to act on).
+  function clearLetterExtras() {
+    stopSpeaking();
+    state.letterText = "";
+    state.currentLetterId = null;
+    if (els.listenBtn) els.listenBtn.hidden = true;
+    if (window.DaimonShare && window.DaimonShare.setAvailable) {
+      window.DaimonShare.setAvailable(false);
+    }
+    setupBookmark(null, false);
+    renderSources([]);
+  }
+
   // ---- Open an existing letter (from the timeline) ----
   function openLetter(id) {
     showView("reading");
@@ -347,13 +639,16 @@
     resetReplyForm();
     api("/api/letters/" + id)
       .then(function (data) {
-        // Existing stored letters carry no sample flag.
+        // Existing stored letters carry no sample flag and no sources via this
+        // endpoint — reveal without auto-read and with no citations.
         data.sample = false;
+        data.sources = [];
         revealLetter(data);
       })
       .catch(function () {
         els.loading.hidden = true;
         els.letter.hidden = false;
+        clearLetterExtras();
         renderBody("That letter could not be found.");
         els.letter.style.opacity = "1";
       });
@@ -518,8 +813,10 @@
     if (kind === "error") els.nameStatus.classList.add("is-error");
   }
 
-  // Reflect the saved name in state + the subtle "for {name}" line by the brand.
-  function reflectName(name) {
+  // Reflect the saved name in state + the subtle "for {name}" line by the brand,
+  // and keep the hero field and the settings field in sync.
+  function reflectName(name, opts) {
+    opts = opts || {};
     state.name = name || "";
     if (els.brandFor) {
       if (state.name) {
@@ -530,16 +827,42 @@
         els.brandFor.hidden = true;
       }
     }
+    if (opts.syncInputs !== false) {
+      if (els.nameInput && els.nameInput.value !== state.name) els.nameInput.value = state.name;
+      if (window.DaimonSettings && window.DaimonSettings.reflect) {
+        window.DaimonSettings.reflect({ name: state.name });
+      }
+    }
   }
 
-  // On load: prefill the field and warmly acknowledge a stored name.
-  function loadName() {
-    return api("/api/me")
+  // On load: fetch prefs (name + theme + tts + default philosopher) in one call.
+  // Theme is applied as early as possible to avoid a flash; the default
+  // philosopher is consumed by loadPhilosophers via state.
+  let initialPrefsDefaultPhil = "";
+  function loadPrefs() {
+    return api("/api/prefs")
       .then(function (data) {
+        data = data || {};
+        applyTheme(typeof data.theme === "string" ? data.theme : "");
+        state.tts = !!data.tts;
+        initialPrefsDefaultPhil = (data && data.default_philosopher) ? String(data.default_philosopher) : "";
+
         const name = (data && data.name) ? String(data.name) : "";
         if (els.nameInput) els.nameInput.value = name;
         reflectName(name);
         if (name) setNameStatus("Welcome back, " + name + ".", null);
+
+        // Hand the full prefs to the settings module for its form.
+        if (window.DaimonSettings && window.DaimonSettings.onPrefs) {
+          window.DaimonSettings.onPrefs(data);
+        }
+
+        // First-visit onboarding: only when no name is saved (returning users
+        // who have set a name never see it). Gated further by a localStorage
+        // flag inside the module, so it shows at most once.
+        if (window.DaimonOnboarding && window.DaimonOnboarding.maybeShow) {
+          window.DaimonOnboarding.maybeShow({ hasName: !!name });
+        }
       })
       .catch(function () {
         /* Optional feature — a failed lookup must never block the page. */
@@ -602,11 +925,28 @@
         els.select.appendChild(opt);
       });
       if (list.length) {
+        const hasDefault = initialPrefsDefaultPhil &&
+          list.some(function (p) { return p.key === initialPrefsDefaultPhil; });
         const hasSeneca = list.some(function (p) { return p.key === "seneca"; });
-        state.philosopher = hasSeneca ? "seneca" : list[0].key;
+        state.philosopher = hasDefault
+          ? initialPrefsDefaultPhil
+          : (hasSeneca ? "seneca" : list[0].key);
         els.select.value = state.philosopher;
       }
+      // Let the settings module fill its own select once names are known.
+      if (window.DaimonSettings && window.DaimonSettings.onPhilosophers) {
+        window.DaimonSettings.onPhilosophers(list, state.philosopher);
+      }
     });
+  }
+
+  // Change the active philosopher from anywhere (e.g. settings) and keep the
+  // nav select + timeline in sync.
+  function setPhilosopher(key) {
+    if (!key) return;
+    state.philosopher = key;
+    if (els.select && els.select.value !== key) els.select.value = key;
+    if (currentView === "timeline") buildTimeline();
   }
 
   // Navigate to a named view, running its side-effects (build timeline, etc).
@@ -614,20 +954,59 @@
     showView(name);
     if (name === "timeline") buildTimeline();
     if (name === "salon" && window.DaimonSalon) window.DaimonSalon.onEnter();
+    if (name === "saved" && window.DaimonBookmarks) window.DaimonBookmarks.onEnter();
     if (name === "philosophy" && window.DaimonPhilosophy) window.DaimonPhilosophy.onEnter();
+    if (name === "stats" && window.DaimonStats) window.DaimonStats.onEnter();
     if (name === "about" && window.DaimonAbout) window.DaimonAbout.onEnter();
   }
 
   // ---- Wire events ----
   function bindEvents() {
     els.select.addEventListener("change", function () {
-      state.philosopher = els.select.value;
-      // If currently browsing the timeline, refresh it for the new philosopher.
-      if (currentView === "timeline") buildTimeline();
+      setPhilosopher(els.select.value);
+      if (window.DaimonSettings && window.DaimonSettings.reflect) {
+        window.DaimonSettings.reflect({ default_philosopher: els.select.value });
+      }
     });
 
     els.navNew.addEventListener("click", generateLetter);
     els.heroRead.addEventListener("click", generateLetter);
+
+    // Quick theme toggle in the nav.
+    if (els.themeToggle) els.themeToggle.addEventListener("click", toggleTheme);
+
+    // Optional topic field (expandable): toggle open, submit on Enter.
+    if (els.topicToggle && els.topicPanel) {
+      els.topicToggle.addEventListener("click", function () {
+        const open = els.topicPanel.hidden;
+        els.topicPanel.hidden = !open;
+        els.topicToggle.setAttribute("aria-expanded", open ? "true" : "false");
+        if (open && els.topicInput) {
+          try { els.topicInput.focus(); } catch (_) {}
+        }
+      });
+    }
+    if (els.topicInput) {
+      els.topicInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          generateLetter();
+        }
+      });
+    }
+
+    // Read-aloud (Listen / Stop) on the reading view.
+    if (els.listenBtn) els.listenBtn.addEventListener("click", toggleSpeaking);
+
+    // Star / bookmark the current letter.
+    if (els.bookmarkBtn) els.bookmarkBtn.addEventListener("click", toggleBookmark);
+
+    // Search affordance in the nav → open the search overlay.
+    if (els.searchBtn) {
+      els.searchBtn.addEventListener("click", function () {
+        if (window.DaimonSearch && window.DaimonSearch.open) window.DaimonSearch.open();
+      });
+    }
 
     els.heroBrowse.addEventListener("click", function () { goTo("timeline"); });
     if (els.heroSalon) els.heroSalon.addEventListener("click", function () { goTo("salon"); });
@@ -667,7 +1046,7 @@
     });
   }
 
-  // ---- Shared API for sibling modules (salon.js) ----
+  // ---- Shared API for sibling modules (salon.js, settings.js) ----
   // Keeps a single fetch wrapper / philosopher list / sigil map across modules.
   window.Daimon = {
     api: api,
@@ -676,16 +1055,48 @@
     hasGsap: hasGsap,
     goTo: goTo,
     generateLetter: generateLetter,
+    openLetter: openLetter,          // (id) — open a stored letter in the reading view
     displayNameFor: displayNameFor,
     philosophers: function () { return state.philosophers; },
+
+    // Used by settings.js to apply changes live (without a reload).
+    applyTheme: applyTheme,                // ("", "dark", "light")
+    setName: function (name) { reflectName(name); },
+    setTts: function (on) { state.tts = !!on; },
+    setDefaultPhilosopher: setPhilosopher, // (key)
+    currentName: function () { return state.name; },
   };
+
+  // Stop any read-aloud if the tab is hidden (don't keep talking in background).
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) stopSpeaking();
+  });
+  window.addEventListener("pagehide", stopSpeaking);
+
+  // ---- Service worker (PWA: installable + offline) ----
+  // Registered after load so it never competes with first paint, and wrapped so
+  // a failure (unsupported / blocked / file 404) can never break the app.
+  function registerServiceWorker() {
+    if (!("serviceWorker" in navigator)) return;
+    try {
+      navigator.serviceWorker.register("/sw.js").catch(function () { /* non-fatal */ });
+    } catch (_) { /* non-fatal */ }
+  }
+  if (document.readyState === "complete") {
+    registerServiceWorker();
+  } else {
+    window.addEventListener("load", registerServiceWorker);
+  }
 
   // ---- Boot ----
   function boot() {
     bindEvents();
     animateHero();
-    loadName();
-    loadPhilosophers()
+    // Load prefs first (theme + tts + name + default philosopher), THEN the
+    // philosopher list — so the saved default selects correctly. A failed prefs
+    // call resolves (never rejects), so this can't block the list.
+    loadPrefs()
+      .then(loadPhilosophers)
       .then(function () {
         if (window.DaimonSalon) window.DaimonSalon.onPhilosophers(state.philosophers);
       })

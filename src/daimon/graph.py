@@ -16,6 +16,7 @@ class LetterState(TypedDict, total=False):
     philosopher: str
     session_id: str | None
     user_name: str | None
+    topic: str | None
     persona: dict
     history: list[dict]
     user_reply: dict | None
@@ -24,6 +25,7 @@ class LetterState(TypedDict, total=False):
     brief: str
     draft: str
     final: str
+    sources: list[dict]
 
 
 def load_context_node(state: LetterState) -> LetterState:
@@ -42,6 +44,15 @@ def planner_node(state: LetterState) -> LetterState:
     history = state["history"]
     user_reply = state["user_reply"]
     last_letter = state["last_letter"]
+
+    topic = (state.get("topic") or "").strip()
+    if topic:
+        brief = (
+            f'The friend has asked you to write to them about: "{topic}". '
+            "Honour that request directly, in your own voice and idiom, drawing it "
+            "into a reflection that matters. You may acknowledge the request lightly."
+        )
+        return {**state, "letter_type": "requested", "brief": brief}
 
     if not history:
         letter_type = "opening"
@@ -67,16 +78,17 @@ def planner_node(state: LetterState) -> LetterState:
     return {**state, "letter_type": letter_type, "brief": brief}
 
 
-def _grounding_passages(philosopher: str, brief: str) -> list[str]:
+def _grounding_passages(philosopher: str, query: str, k: int = 3) -> list[dict]:
     """Retrieve passages from the philosopher's own works to ground the letter.
 
-    Fails open: if retrieval is unavailable, the letter is written without
-    grounding (philosophers with no corpus simply return nothing).
+    Returns the full retrieval results ({text, philosopher, score}) so they can
+    both steep the prompt and be surfaced to the reader as 'further reading'.
+    Fails open: returns [] if retrieval is unavailable.
     """
     try:
         from .rag import retrieve as rag_retrieve
 
-        return [r["text"] for r in rag_retrieve(brief, philosopher=philosopher, k=3)]
+        return rag_retrieve(query, philosopher=philosopher, k=k)
     except Exception:
         return []
 
@@ -89,10 +101,11 @@ def drafter_node(state: LetterState) -> LetterState:
         f"[{h['role'].upper()}, prior]\n{h['body']}" for h in state["history"]
     ) or "(no prior correspondence)"
 
-    grounding = _grounding_passages(state["philosopher"], state["brief"])
+    query = state.get("topic") or state["brief"]
+    sources = _grounding_passages(state["philosopher"], query)
     grounding_str = ""
-    if grounding:
-        joined = "\n\n".join(f"- {g}" for g in grounding)
+    if sources:
+        joined = "\n\n".join(f"- {s['text']}" for s in sources)
         grounding_str = (
             "\nPASSAGES FROM YOUR OWN WRITINGS (let these steep the spirit, "
             "imagery, and themes of your letter — render them in fresh words; "
@@ -110,7 +123,7 @@ def drafter_node(state: LetterState) -> LetterState:
     )
 
     response = llm.invoke([SystemMessage(content=system), HumanMessage(content=user_msg)])
-    return {**state, "draft": response.content}
+    return {**state, "draft": response.content, "sources": sources}
 
 
 def polisher_node(state: LetterState) -> LetterState:
@@ -142,8 +155,14 @@ def generate_letter(
     philosopher: str = "seneca",
     session_id: str | None = None,
     user_name: str | None = None,
+    topic: str | None = None,
 ) -> dict:
     graph = build_graph()
     return graph.invoke(
-        {"philosopher": philosopher, "session_id": session_id, "user_name": user_name}
+        {
+            "philosopher": philosopher,
+            "session_id": session_id,
+            "user_name": user_name,
+            "topic": topic,
+        }
     )
